@@ -50,6 +50,11 @@ window.__ModuleLoader__.load({
       'status.failed': '失败',
       'done.restart': '新版本已安装，重启 DSH 后生效。',
       'done.refresh': '更新已安装；如界面仍是旧版本，请刷新页面或重启 DSH。',
+      'done.snapshot': '更新前快照：{path}',
+      'risk.boot': '启动关键',
+      'risk.provider': '被 {count} 个插件依赖',
+      'risk.unselected': '{count} 个启动关键 / 被依赖插件未勾选。请单独更新它们，并在更新后立即重启验证。',
+      'risk.warning': '选中的插件包含启动关键项。更新后请立即重启验证；若 DSH 无法打开，在错误对话框点「禁用第三方插件、备份 profile patch 并重启」，或运行 repair.cmd 恢复快照。',
       'done.summary': '已更新 {count} 个插件',
       'done.stopped': '更新在 {name} 处停止',
       'done.rollbackOk': '已自动回滚到旧版本。',
@@ -63,6 +68,9 @@ window.__ModuleLoader__.load({
       'error.request-too-large': '请求内容过大。',
       'error.operation-failed': '操作未完成，请重试。',
       'error.service-unavailable': '更新服务不可用，请刷新页面。',
+      'error.snapshot-failed': '无法创建 profile 快照，已取消本次更新。',
+      'error.rollback-unavailable': '旧版本在 registry 中已不可用，无法安全回滚，已取消。',
+      'error.verification-failed': '安装后校验失败，已自动回滚到旧版本。',
     }
 
     const en = {
@@ -97,6 +105,11 @@ window.__ModuleLoader__.load({
       'status.failed': 'Failed',
       'done.restart': 'New versions are installed. Restart DSH to load them.',
       'done.refresh': 'Updates are installed. Refresh the page or restart DSH if the UI still shows the old version.',
+      'done.snapshot': 'Pre-update snapshot: {path}',
+      'risk.boot': 'Boot-critical',
+      'risk.provider': 'Used by {count} plugins',
+      'risk.unselected': '{count} boot-critical / depended-on plugins are not selected. Update them one at a time and restart to verify.',
+      'risk.warning': 'The selection includes boot-critical plugins. Restart and verify right after updating; if DSH will not open, use “Disable third-party plugins” in the error dialog or run repair.cmd to restore the snapshot.',
       'done.summary': '{count} plugins updated',
       'done.stopped': 'Update stopped at {name}',
       'done.rollbackOk': 'The previous version was restored automatically.',
@@ -110,6 +123,9 @@ window.__ModuleLoader__.load({
       'error.request-too-large': 'The request was too large.',
       'error.operation-failed': 'The operation did not finish. Try again.',
       'error.service-unavailable': 'The update service is unavailable. Refresh the page.',
+      'error.snapshot-failed': 'A profile snapshot could not be created, so the update was cancelled.',
+      'error.rollback-unavailable': 'The previous release is no longer available on the registry, so a safe rollback is impossible. Cancelled.',
+      'error.verification-failed': 'Post-install verification failed; the previous version was restored.',
     }
 
     const STYLE = [
@@ -135,6 +151,7 @@ window.__ModuleLoader__.load({
       '.dshpu-rowMain{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}',
       '.dshpu-name{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary,#202124);overflow-wrap:anywhere}',
       '.dshpu-desc{font-size:12px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8a94a6);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
+      '.dshpu-risk{margin-top:2px;font-size:11px;line-height:16px;color:var(--dsw-alias-state-warn-primary,#b26a00)}',
       '.dshpu-versions{display:flex;align-items:center;gap:4px;flex:none;font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080);white-space:nowrap;padding-top:1px}',
       '.dshpu-latest{color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6)}',
       '.dshpu-status{flex:none;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8a94a6);white-space:nowrap;padding-top:1px}',
@@ -152,6 +169,7 @@ window.__ModuleLoader__.load({
       '.dshpu-note{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--dsw-alias-border-l1,#eceef2);border-radius:10px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080);background:var(--dsw-alias-bg-layer-2,#f7f8fa)}',
       '.dshpu-note svg{flex:none;margin-top:1px}',
       '.dshpu-note[data-tone="error"]{border-color:var(--dsw-alias-state-error-primary,#d93025);color:var(--dsw-alias-state-error-primary,#d93025)}',
+      '.dshpu-note[data-tone="warn"]{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary,#b26a00) 45%, transparent);color:var(--dsw-alias-state-warn-primary,#b26a00)}',
       '.dshpu-note[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-noteText{min-width:0;word-break:break-word}',
       '.dshpu-mono{font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace)}',
@@ -213,7 +231,7 @@ window.__ModuleLoader__.load({
       }
 
       function message(code) {
-        const known = /^(busy|busy-session|check-first|release-changed|invalid-request|registry-unavailable|request-too-large|operation-failed|service-unavailable)$/
+        const known = /^(busy|busy-session|check-first|release-changed|invalid-request|registry-unavailable|request-too-large|operation-failed|service-unavailable|snapshot-failed|rollback-unavailable|verification-failed)$/
         return t(known.test(code) ? 'error.' + code : 'error.operation-failed')
       }
 
@@ -322,7 +340,10 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function UpdateRow({ name, description, from, to, disabled, status, tone, showCheckbox, checked, onToggle }) {
+      function UpdateRow({ name, description, from, to, disabled, status, tone, showCheckbox, checked, onToggle, bootCritical, dependents }) {
+        const risks = []
+        if (bootCritical === true) risks.push(t('risk.boot'))
+        if ((dependents?.length ?? 0) > 0) risks.push(t('risk.provider', { count: dependents.length }))
         return h('li', { className: 'dshpu-row' },
           showCheckbox
             ? h(UI.Checkbox, {
@@ -334,6 +355,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dshpu-rowMain' },
             h('div', { className: 'dshpu-name' }, name),
             description ? h('div', { className: 'dshpu-desc' }, description) : null,
+            risks.length > 0 ? h('div', { className: 'dshpu-risk' }, risks.join(' · ')) : null,
           ),
           h('div', { className: 'dshpu-versions' },
             h('span', null, from),
@@ -419,6 +441,10 @@ window.__ModuleLoader__.load({
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
               job.restartRequired === true ? t('done.restart') : t('done.refresh'))
             : null,
+          (job.state === 'done' || job.state === 'failed') && typeof job.snapshotDir === 'string'
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
+              t('done.snapshot', { path: job.snapshotDir }))
+            : null,
         )
       }
 
@@ -426,6 +452,9 @@ window.__ModuleLoader__.load({
         const snapshot = state.snapshot
         const checking = state.checking || snapshot?.checking === true
         const checkedAt = snapshot?.checkedAt
+        const risky = (item) => item.bootCritical === true || (item.dependents?.length ?? 0) > 0
+        const riskySelected = updates.filter((item) => selected.has(item.name) && risky(item))
+        const riskyUnselected = updates.filter((item) => !selected.has(item.name) && risky(item))
         return h('div', { className: 'dshpu-body' },
           h('div', { className: 'dshpu-summary' },
             h('div', { className: 'dshpu-summaryText' },
@@ -442,6 +471,14 @@ window.__ModuleLoader__.load({
               checking ? t('list.checking') : t('list.recheck'),
             ),
           ),
+          riskyUnselected.length > 0
+            ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
+              t('risk.unselected', { count: riskyUnselected.length }))
+            : null,
+          riskySelected.length > 0
+            ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
+              t('risk.warning'))
+            : null,
           updates.length > 0
             ? h('ul', { className: 'dshpu-list' },
               updates.map((item) => h(UpdateRow, {
@@ -456,6 +493,8 @@ window.__ModuleLoader__.load({
                 onToggle: (checked) => toggle(item.name, checked),
                 status: item.enabled === false ? t('list.disabled') : undefined,
                 tone: 'idle',
+                bootCritical: item.bootCritical,
+                dependents: item.dependents,
               })),
             )
             : null,
@@ -504,7 +543,12 @@ window.__ModuleLoader__.load({
 
         useEffect(() => {
           if (showJob) return
-          setSelected(new Set(updates.map((item) => item.name)))
+          // Boot-critical plugins and providers other plugins inject are left
+          // unchecked: updating them alone can strand dependents on a missing
+          // client service and make the next DSH window fail to boot.
+          setSelected(new Set(updates
+            .filter((item) => item.bootCritical !== true && (item.dependents?.length ?? 0) === 0)
+            .map((item) => item.name)))
           // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [namesKey, showJob, open])
 

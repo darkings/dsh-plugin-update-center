@@ -6,6 +6,8 @@
  * delegated to the official `pluginManager`; nothing here writes the profile.
  */
 
+import { dirname } from 'node:path'
+import { createBackup } from './lib/backup.js'
 import { createEngine } from './lib/engine.js'
 import { createHandler, ROUTE } from './lib/http.js'
 import { createRegistry } from './lib/registry.js'
@@ -42,9 +44,18 @@ export function apply(ctx) {
   ) return
   if (typeof connection?.fetch?.register !== 'function') return
 
+  const profile = ctx.get?.('profileContext')
+  const profileDir = typeof profile?.dir === 'string' && profile.dir !== '' ? profile.dir : undefined
+  const homeDir = process.env.DSH_HOME ?? (profileDir === undefined ? undefined : dirname(dirname(profileDir)))
+  const backup = profileDir !== undefined && homeDir !== undefined
+    ? createBackup({ profileDir, homeDir })
+    : null
+
   const engine = createEngine({
     manager,
     registry: createRegistry(),
+    profileDir,
+    backup,
     runtimeVersion: (bundles) => {
       if (!Array.isArray(bundles)) return undefined
       const base = bundles.find((bundle) => bundle?.name === '@deepseek-ai/dsh-base' && typeof bundle.version === 'string')

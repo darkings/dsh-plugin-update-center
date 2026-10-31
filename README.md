@@ -43,6 +43,33 @@ installBundle(`${name}@${latest}`, { enabled: 原状态, saveExact: true, regist
 
 进度条口径：由于官方 API 不暴露 pnpm 的字节级下载进度，进度按「已完成插件数 + 当前阶段权重」推进（核对 5% → 移除 35% → 安装 65% → 完成 100%），而不是按下载百分比。
 
+## 防砖与恢复
+
+DSH 对**缺失/损坏的 bundle** 是宽容的：Loader 会跳过并打印 warning，应用仍能启动。真正会让应用打不开的是另外三类问题，本插件针对它们做了防护：
+
+1. **启动层插件互相依赖断裂**（例如 `dsh-thought-buddy` 等待 `dsh-loader` 提供的 `dshLoaderUi`）：web boot 要求 immediate 客户端插件全部激活，一个 pending 就会让窗口打不开。插件会读取已安装 manifest 的 `dsh.client.immediately` 和 `dsh.client.inject`，把「启动关键」和「被其他插件注入」的更新标记出来，**默认不勾选**，并在勾选时给出警告。
+2. **安装成功但落盘不完整**：更新后逐一校验 `listBundles` 的 `installed/version/enabled/error`、Host 行的 `fiberPhase`、`node_modules/<pkg>` 的 `package.json`、入口文件和 bundle patch 文件；任何一项不通过就自动回滚旧版本。
+3. **硬崩溃/断电导致 profile 文件残留**：每批更新开始前把 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`cordis.patch.yml`、`cordis.yml` 复制到 `$DSH_HOME/plugin-updates/snapshots/<timestamp>/`；快照失败则**拒绝开始更新**。更新前的旧版本 manifest 也会先确认可下载，否则拒绝更新（保证回滚目标存在）。
+
+### DSH 打不开时
+
+1. 先点错误对话框里的 **「禁用第三方插件、备份 profile patch 并重启」**（DSH 自带的安全模式）。
+2. 仍不行就运行本仓库的 `repair.cmd`（双击即可）：
+   ```powershell
+   repair.cmd --list
+   repair.cmd                     # 恢复最新快照并重装依赖
+   repair.cmd --snapshot <目录名>  # 指定快照
+   repair.cmd --no-install        # 只恢复文件
+   ```
+   它会把当前损坏文件另存到 `$DSH_HOME/plugin-updates/broken-<time>/`，再恢复快照并执行 `dsh plugin --profile desktop install`。
+3. 没有任何快照时，可用 `dsh --profile rescue --from-default-profile web` 启动一个干净 profile 排查，或手动编辑 `profiles/desktop/package.json` 移除可疑依赖。
+
+### 建议的使用方式
+
+- 一次只更新一个「启动关键 / 被依赖」插件，更新完立即重启验证；普通插件可以批量。
+- 更新后先重启一次确认能打开，再继续下一批。
+- 出现 `fatal uncaught exception`（如共享依赖里的 `undici`/`openai`）时，先 `repair.cmd` 回到更新前，再单独排查该插件，不要连续重试。
+
 ## 安装
 
 ```powershell
@@ -65,11 +92,13 @@ npm test
 | 文件 | 作用 |
 | --- | --- |
 | `index.js` | Host 入口：注册 `POST /api/dsh-plugin-updates` |
-| `lib/engine.js` | 检查、计划、串行更新、回滚、进度状态 |
+| `lib/engine.js` | 检查、计划、串行更新、快照前校验、安装后验证、回滚、进度状态 |
+| `lib/backup.js` | profile 快照、保留策略、更新历史 |
 | `lib/registry.js` | npm registry 读取与回退 |
 | `lib/versions.js` | 无依赖的 semver 比较与范围判断 |
 | `lib/http.js` | 同源 POST 路由与有界请求体 |
-| `client.js` | 侧边栏按钮、弹窗、进度条 |
+| `client.js` | 登录名右侧 chip、弹窗、风险提示、进度条 |
+| `repair.mjs` / `repair.cmd` | DSH 打不开时的离线恢复脚本 |
 | `locale/*.json` | 插件管理页显示标题与描述 |
 
 ## 已知限制

@@ -18,6 +18,8 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
+    "repair.mjs",
+    "repair.cmd",
     "README.md"
   ],
   "dsh": {

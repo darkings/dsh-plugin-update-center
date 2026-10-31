@@ -1,5 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   createEngine,
   evaluateManifest,
@@ -69,12 +72,14 @@ function bundles() {
 
 function makeManager(overrides = {}) {
   const calls = []
+  const rows = overrides.bundles ?? bundles()
   const install = overrides.install ?? (async () => ({ changed: true, application: 'applied' }))
   const remove = overrides.remove ?? (async () => ({ changed: true, application: 'applied' }))
   return {
     calls,
+    rows,
     async listBundles() {
-      return overrides.bundles ?? bundles()
+      return rows
     },
     async removeBundle(name) {
       calls.push(['remove', name])
@@ -82,22 +87,40 @@ function makeManager(overrides = {}) {
     },
     async installBundle(spec, options) {
       calls.push(['install', spec, options])
-      return install(spec, options)
+      const result = await install(spec, options)
+      if (overrides.persist !== false && result && result.error == null && (result.application === 'applied' || result.application === 'restart-required')) {
+        const separator = spec.lastIndexOf('@')
+        const name = separator > 0 ? spec.slice(0, separator) : spec
+        const version = separator > 0 ? spec.slice(separator + 1) : undefined
+        const row = rows.find((entry) => entry.name === name)
+        if (row !== undefined && version !== undefined) {
+          row.version = version
+          row.installed = true
+          row.enabled = options?.enabled !== false
+          row.availability = 'profile'
+        }
+      }
+      return result
     },
   }
 }
 
-function makeRegistry(entry) {
+function makeRegistry(entry, options = {}) {
   const calls = []
   return {
     calls,
-    async release(name, signal, options = {}) {
-      calls.push({ name, version: options.version })
+    async release(name, signal, requestOptions = {}) {
+      calls.push({ name, version: requestOptions.version })
       if (name !== 'pkg-a' || entry === undefined) throw Object.assign(new Error('registry-unavailable'), { code: 'registry-unavailable' })
-      const version = options.version ?? entry.version
+      const version = requestOptions.version ?? entry.version
       const document = entry.manifests?.[version] ?? (version === entry.version ? entry.manifest : undefined)
       if (document === undefined) throw Object.assign(new Error('registry-unavailable'), { code: 'registry-unavailable' })
       return { version, registry: 'https://registry.npmjs.org', manifest: document }
+    },
+    ...options.manifest === undefined ? {} : {
+      async manifest(name, version) {
+        return options.manifest(name, version)
+      },
     },
   }
 }
@@ -121,6 +144,8 @@ function makeEngine(overrides = {}) {
     registry,
     runtimeVersion: () => '0.2.1-rc.5',
     activity: overrides.activity ?? (async () => ({ known: true, busy: false })),
+    ...overrides.profileDir === undefined ? {} : { profileDir: overrides.profileDir },
+    ...overrides.backup === undefined ? {} : { backup: overrides.backup },
   })
   return { engine, manager, registry }
 }
@@ -163,6 +188,9 @@ test('checks installed bundles and reports updates', async () => {
     enabled: true,
     description: 'Alpha plugin',
     publishedAt: null,
+    bootCritical: false,
+    clientDeps: [],
+    dependents: [],
   })
   assert.equal(snapshot.checked, 1)
   assert.equal(registry.calls.length, 1)
@@ -262,4 +290,90 @@ test('dismisses a finished job', async () => {
   await waitFor(() => engine.state.job.state !== 'running')
   const after = engine.dismiss()
   assert.equal(after.job, null)
+})
+
+test('refuses to start when the profile snapshot cannot be created', async () => {
+  const { engine } = makeEngine({ backup: { create: async () => { throw new Error('disk-full') } } })
+  await engine.check({ force: true })
+  await assert.rejects(engine.start(['pkg-a']), (error) => error.code === 'snapshot-failed')
+  assert.equal(engine.state.job, null)
+})
+
+test('records the snapshot directory on the job', async () => {
+  const { engine } = makeEngine({ backup: { create: async () => ({ dir: 'C:/snapshots/one' }), history: async () => {} } })
+  await engine.check({ force: true })
+  const started = await engine.start(['pkg-a'])
+  assert.equal(started.job.snapshotDir, 'C:/snapshots/one')
+  await waitFor(() => engine.state.job.state !== 'running')
+  assert.equal(engine.state.job.state, 'done')
+})
+
+test('refuses to start when the previous release cannot be restored', async () => {
+  const { engine, manager, registry } = makeEngine({
+    registry: makeRegistry(
+      { version: '1.2.0', manifests: { '1.0.0': manifest('1.0.0'), '1.2.0': manifest('1.2.0') } },
+      { manifest: async () => null },
+    ),
+  })
+  await engine.check({ force: true })
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  assert.equal(engine.state.job.state, 'failed')
+  assert.equal(engine.state.job.results[0].error, 'rollback-unavailable')
+  assert.equal(manager.calls.length, 0)
+  assert.equal(registry.calls.length, 2)
+})
+
+test('rolls back when the installed package fails post-install verification', async () => {
+  const { engine, manager } = makeEngine({ manager: makeManager({ persist: false }) })
+  await engine.check({ force: true })
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running', 5000)
+  const job = engine.state.job
+  assert.equal(job.state, 'failed')
+  assert.equal(job.failure, 'verification-failed')
+  assert.equal(job.results[0].error, 'verification-failed')
+  assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
+})
+
+test('flags boot-critical plugins and their dependents', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-updates-'))
+  try {
+    await mkdir(join(root, 'node_modules', 'pkg-a'), { recursive: true })
+    await writeFile(join(root, 'node_modules', 'pkg-a', 'package.json'), JSON.stringify({
+      name: 'pkg-a',
+      version: '1.0.0',
+      dsh: { client: { platform: 'web', immediately: true } },
+    }))
+    await mkdir(join(root, 'node_modules', 'pkg-b'), { recursive: true })
+    await writeFile(join(root, 'node_modules', 'pkg-b', 'package.json'), JSON.stringify({
+      name: 'pkg-b',
+      version: '1.0.0',
+      dsh: { client: { platform: 'web', inject: ['pkg-a'] } },
+    }))
+    const testBundles = [
+      { name: 'pkg-a', version: '1.0.0', source: 'pkg-a@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+      { name: 'pkg-b', version: '1.0.0', source: 'pkg-b@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+      { name: '@deepseek-ai/dsh-base', version: '0.2.1-rc.5', availability: 'installation', installed: false },
+    ]
+    const registry = {
+      async release(name) {
+        return {
+          version: '1.2.0',
+          registry: 'https://registry.npmjs.org',
+          manifest: { name, version: '1.2.0', dsh: { bundle: { patch: './cordis.patch.yml' } }, dist: { integrity: INTEGRITY_A } },
+        }
+      },
+    }
+    const { engine } = makeEngine({ registry, manager: makeManager({ bundles: testBundles }), profileDir: root })
+    const snapshot = await engine.check({ force: true })
+    const first = snapshot.updates.find((row) => row.name === 'pkg-a')
+    const second = snapshot.updates.find((row) => row.name === 'pkg-b')
+    assert.equal(first.bootCritical, true)
+    assert.deepEqual(first.dependents, ['pkg-b'])
+    assert.equal(second.bootCritical, false)
+    assert.deepEqual(second.dependents, [])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
