@@ -133,7 +133,7 @@ window.__ModuleLoader__.load({
       '.dshpu-row+.dshpu-row{border-top:1px solid var(--dsw-alias-border-l1,#eceef2)}',
       '.dshpu-row label>span:empty{display:none}',
       '.dshpu-rowMain{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}',
-      '.dshpu-name{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary,#202124);word-break:break-all}',
+      '.dshpu-name{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary,#202124);overflow-wrap:anywhere}',
       '.dshpu-desc{font-size:12px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8a94a6);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
       '.dshpu-versions{display:flex;align-items:center;gap:4px;flex:none;font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080);white-space:nowrap;padding-top:1px}',
       '.dshpu-latest{color:var(--dsw-alias-brand-primary,#4d6bfe)}',
@@ -155,7 +155,9 @@ window.__ModuleLoader__.load({
       '.dshpu-note[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-noteText{min-width:0;word-break:break-word}',
       '.dshpu-mono{font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace)}',
-      '.dshpu-actions{display:flex;justify-content:flex-end;gap:8px;width:100%}',
+      '.dshpu-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;width:100%}',
+      '.dshpu-footerError{flex:1;min-width:0;margin-right:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary,#d93025);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dshpu-modal.dshpu-modal{width:560px;max-width:calc(100vw - 48px)}',
       '@media (prefers-reduced-motion: reduce){.dshpu-spin{animation:none}.dshpu-barFill{transition:none}}',
     ].join('')
 
@@ -418,43 +420,9 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function ListView({ state }) {
+      function ListView({ state, updates, selected, toggle, busy }) {
         const snapshot = state.snapshot
-        const updates = snapshot?.updates ?? []
-        const [selected, setSelected] = useState(() => new Set())
-        const [busy, setBusy] = useState(false)
-        const [actionError, setActionError] = useState(null)
-        const namesKey = updates.map((item) => item.name).join('|')
         const checking = state.checking || snapshot?.checking === true
-
-        useEffect(() => {
-          setSelected(new Set(updates.map((item) => item.name)))
-          // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [namesKey])
-
-        function toggle(name, checked) {
-          setSelected((current) => {
-            const next = new Set(current)
-            if (checked) next.add(name)
-            else next.delete(name)
-            return next
-          })
-        }
-
-        async function submit() {
-          const names = [...selected]
-          if (names.length === 0) return
-          setBusy(true)
-          setActionError(null)
-          try {
-            await startUpdates(names)
-          } catch (error) {
-            setActionError(errorCodeOf(error))
-          } finally {
-            setBusy(false)
-          }
-        }
-
         const checkedAt = snapshot?.checkedAt
         return h('div', { className: 'dshpu-body' },
           h('div', { className: 'dshpu-summary' },
@@ -489,20 +457,10 @@ window.__ModuleLoader__.load({
               })),
             )
             : null,
-          actionError !== null
-            ? h(StatusNote, { tone: 'error', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) }, message(actionError))
-            : null,
           state.error !== null && state.error !== undefined
             ? h(StatusNote, { tone: 'error', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
               t('check.failed', { code: state.error }))
             : null,
-          h('div', { className: 'dshpu-actions' },
-            h(UI.Button, {
-              variant: 'primary',
-              disabled: busy || checking || selected.size === 0,
-              onClick: () => { void submit() },
-            }, t('panel.update', { count: selected.size })),
-          ),
         )
       }
 
@@ -535,21 +493,57 @@ window.__ModuleLoader__.load({
         const showJob = job !== null && (job.state === 'running' || (job.results?.length ?? 0) > 0)
         const checking = state.checking || snapshot?.checking === true
         const updates = snapshot?.updates ?? []
+        const namesKey = updates.map((item) => item.name).join('|')
+        const [selected, setSelected] = useState(() => new Set())
+        const [busy, setBusy] = useState(false)
+        const [actionError, setActionError] = useState(null)
 
         useLocaleTick()
+
+        useEffect(() => {
+          if (showJob) return
+          setSelected(new Set(updates.map((item) => item.name)))
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [namesKey, showJob, open])
+
+        function toggle(name, checked) {
+          setSelected((current) => {
+            const next = new Set(current)
+            if (checked) next.add(name)
+            else next.delete(name)
+            return next
+          })
+        }
+
+        async function submit() {
+          const names = [...selected]
+          if (names.length === 0) return
+          setBusy(true)
+          setActionError(null)
+          try {
+            await startUpdates(names)
+          } catch (error) {
+            setActionError(errorCodeOf(error))
+          } finally {
+            setBusy(false)
+          }
+        }
 
         const handleClose = () => {
           if (job !== null && job.state !== 'running') void dismissJob()
           onClose()
         }
 
+        const loading = snapshot === null || snapshot === undefined || (checking && updates.length === 0)
         let body
         if (showJob) body = h(ProgressView, { job })
-        else if (snapshot === null || snapshot === undefined) body = h(EmptyOrLoading, { state })
-        else if (checking && updates.length === 0) body = h(EmptyOrLoading, { state })
-        else body = h(ListView, { state })
+        else if (loading) body = h(EmptyOrLoading, { state })
+        else body = h(ListView, { state, updates, selected, toggle, busy })
 
         const footer = h('div', { className: 'dshpu-actions' },
+          actionError !== null
+            ? h('div', { className: 'dshpu-footerError' }, message(actionError))
+            : null,
           showJob && job.state === 'running'
             ? h(UI.Button, { variant: 'outline', onClick: handleClose }, t('panel.background'))
             : null,
@@ -558,6 +552,13 @@ window.__ModuleLoader__.load({
             : null,
           !showJob
             ? h(UI.Button, { variant: 'outline', onClick: handleClose }, t('panel.cancel'))
+            : null,
+          !showJob && updates.length > 0
+            ? h(UI.Button, {
+              variant: 'primary',
+              disabled: busy || checking || selected.size === 0,
+              onClick: () => { void submit() },
+            }, t('panel.update', { count: selected.size }))
             : null,
         )
 
