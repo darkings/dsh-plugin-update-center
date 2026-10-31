@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Plugin Updates",
+    "description": "Check installed profile plugins for newer npm releases and update them from the sidebar with a progress bar."
+  }
+}
