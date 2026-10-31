@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -49,25 +50,33 @@ test('finds dangling selections, patch references and data directories', async (
       'patch:pkg-gone-row',
       'selection:pkg-gone',
     ])
-    assert.equal(residue.cleanable, 1)
+    assert.equal(residue.cleanable, 3)
   } finally {
     await rm(home, { recursive: true, force: true })
   }
 })
 
-test('cleans only dangling selections and keeps the manifest valid', async () => {
+test('cleans dangling selections and patch rows while keeping the manifest valid', async () => {
   const { home, profile, manager } = await fixture()
   try {
     const created = []
     const backup = { create: async (meta) => { created.push(meta); return { dir: 'snapshot' } } }
     const result = await cleanResidue({ profileDir: profile, homeDir: home, manager, backup })
-    assert.deepEqual(result.cleaned, ['pkg-gone'])
+    assert.deepEqual(
+      result.cleaned.map((item) => item.kind + ':' + item.name).sort(),
+      ['patch:missing-plugin', 'patch:pkg-gone-row', 'selection:pkg-gone'],
+    )
     assert.equal(created.length, 1)
     const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8'))
     assert.deepEqual(manifest.dsh.profile.bundles, ['pkg-keep', '@deepseek-ai/dsh-base'])
+    const patch = await readFile(join(profile, 'cordis.patch.yml'), 'utf8')
+    assert.match(patch, /name: pkg-keep/)
+    assert.doesNotMatch(patch, /pkg-gone-row/)
+    assert.doesNotMatch(patch, /missing-plugin/)
     const after = await scanResidue({ profileDir: profile, homeDir: home, manager })
     assert.equal(after.cleanable, 0)
-    assert.equal(after.items.some((item) => item.kind === 'selection'), false)
+    assert.deepEqual(after.items, [])
+    assert.equal(existsSync(join(home, 'pkg-gone')), true)
   } finally {
     await rm(home, { recursive: true, force: true })
   }

@@ -81,7 +81,7 @@ test('bounds the request body', async () => {
 test('dispatches cancel, desktop-update and residue actions', async () => {
   const residue = {
     scan: async () => ({ checkedAt: 1, items: [{ kind: 'selection', name: 'pkg-gone' }], cleanable: 1 }),
-    clean: async (names) => ({ cleaned: names, residue: { checkedAt: 2, items: [], cleanable: 0 } }),
+    clean: async () => ({ cleaned: [{ kind: 'selection', name: 'pkg-gone' }], residue: { checkedAt: 2, items: [], cleanable: 0 } }),
   }
   const handler = createHandler(makeEngine(), residue)
 
@@ -94,8 +94,8 @@ test('dispatches cancel, desktop-update and residue actions', async () => {
   const scan = await handler(post(JSON.stringify({ action: 'residue' })))
   assert.equal((await scan.json()).value.cleanable, 1)
 
-  const clean = await handler(post(JSON.stringify({ action: 'clean-residue', names: ['pkg-gone'] })))
-  assert.deepEqual((await clean.json()).value.cleaned, ['pkg-gone'])
+  const clean = await handler(post(JSON.stringify({ action: 'clean-residue' })))
+  assert.deepEqual((await clean.json()).value.cleaned, [{ kind: 'selection', name: 'pkg-gone' }])
 })
 
 test('maps a pending DSH update to 409', async () => {
