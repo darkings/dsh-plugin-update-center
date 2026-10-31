@@ -445,6 +445,18 @@ test('refuses to start while DSH itself has a pending update', async () => {
   await waitFor(() => engine.state.job.state !== 'running')
 })
 
+test('acknowledging a reload clears the pending reload flag', async () => {
+  const { engine } = makeEngine()
+  await engine.check({ force: true })
+  engine.state.rows[0].hasClient = true
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  assert.equal(engine.state.job.reloadRequired, true)
+  const snapshot = engine.acknowledgeReload(engine.state.job.id)
+  assert.equal(snapshot.job.reloadRequired, false)
+  assert.equal(typeof snapshot.job.reloadedAt, 'number')
+})
+
 test('restart-required installation suppresses the reload prompt', async () => {
   const { engine } = makeEngine({
     manager: makeManager({ install: async () => ({ changed: true, application: 'restart-required' }) }),

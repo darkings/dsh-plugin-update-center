@@ -10,6 +10,7 @@ function makeEngine() {
     check: async ({ force }) => ({ forced: force === true }),
     start: async (names) => ({ started: names }),
     cancel: () => ({ cancelled: true }),
+    acknowledgeReload: (jobId) => ({ ack: jobId }),
     setDesktopUpdate: (info) => ({ desktop: info }),
     dismiss: () => ({ dismissed: true }),
   }
@@ -87,6 +88,9 @@ test('dispatches cancel, desktop-update and residue actions', async () => {
 
   const cancel = await handler(post(JSON.stringify({ action: 'cancel' })))
   assert.deepEqual(await cancel.json(), { ok: true, value: { cancelled: true } })
+
+  const ack = await handler(post(JSON.stringify({ action: 'reload-ack', jobId: 'job-1' })))
+  assert.deepEqual(await ack.json(), { ok: true, value: { ack: 'job-1' } })
 
   const desktop = await handler(post(JSON.stringify({ action: 'desktop-update', phase: 'available', version: '0.3.0' })))
   assert.deepEqual(await desktop.json(), { ok: true, value: { desktop: { phase: 'available', version: '0.3.0' } } })

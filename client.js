@@ -85,6 +85,7 @@ window.__ModuleLoader__.load({
       'refresh.cancel': '取消',
       'refresh.needed': '需要刷新页面才能加载新版本。',
       'refresh.now': '刷新页面',
+      'refresh.done': '页面已刷新，新版本已加载。',
       'residue.title': '卸载残留',
       'residue.tooltip': '{count} 项卸载残留',
       'residue.summary': '发现 {count} 项可能由卸载遗留的引用',
@@ -167,6 +168,7 @@ window.__ModuleLoader__.load({
       'refresh.cancel': 'Cancel',
       'refresh.needed': 'Refresh the page to load the new version.',
       'refresh.now': 'Refresh page',
+      'refresh.done': 'The page was refreshed and the new version is loaded.',
       'residue.title': 'Uninstall leftovers',
       'residue.tooltip': '{count} uninstall leftovers',
       'residue.summary': '{count} references may be left over from uninstalls',
@@ -392,6 +394,50 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const RELOAD_MARKER_PREFIX = 'dsh-plugin-updates:reloaded:'
+
+      function hasReloadMarker(jobId) {
+        if (typeof jobId !== 'string') return false
+        try {
+          return globalThis.sessionStorage?.getItem(RELOAD_MARKER_PREFIX + jobId) === '1'
+        } catch {
+          return false
+        }
+      }
+
+      function writeReloadMarker(jobId) {
+        if (typeof jobId !== 'string') return
+        try {
+          globalThis.sessionStorage?.setItem(RELOAD_MARKER_PREFIX + jobId, '1')
+        } catch {
+          // Storage can be unavailable; the Host ack is the durable guard.
+        }
+      }
+
+      async function acknowledgeReload(jobId) {
+        try {
+          const snapshot = await api({ action: 'reload-ack', jobId })
+          publish({ snapshot })
+        } catch {
+          // Retried on the next state refresh.
+        }
+      }
+
+      function acknowledgeReloadSoon(jobId) {
+        if (typeof jobId !== 'string') return
+        try {
+          fetch(ROUTE, {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: { 'content-type': 'application/json', 'x-dsh-plugin-updates': '1' },
+            body: JSON.stringify({ action: 'reload-ack', jobId }),
+          }).catch(() => {})
+        } catch {
+          // The session marker still prevents a loop.
+        }
+      }
+
       async function dismissJob() {
         try {
           const snapshot = await api({ action: 'dismiss' })
@@ -556,6 +602,9 @@ window.__ModuleLoader__.load({
           // Restart wins over reload: a full restart reloads the page too.
           job.state === 'done' && job.restartRequired === true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('done.restart'))
+            : null,
+          job.state === 'done' && refresh?.reloaded === true
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) }, t('refresh.done'))
             : null,
           needsReload && refreshCancelled !== true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) },
@@ -958,7 +1007,11 @@ window.__ModuleLoader__.load({
         const residue = state.residue
         const residueCount = residue?.items?.length ?? 0
         const residueVisible = openResidue || residueCount > 0
-        const needsReload = job !== null && job.state === 'done' && job.reloadRequired === true && job.restartRequired !== true
+        const reloadPending = job !== null && job.state === 'done' && job.reloadRequired === true && job.restartRequired !== true
+        // A reload already happened for this job in this tab. Without this
+        // guard the same completed job would trigger another reload forever.
+        const alreadyReloaded = reloadPending && hasReloadMarker(job.id)
+        const needsReload = reloadPending && alreadyReloaded !== true
         const [refreshCancelled, setRefreshCancelled] = useState(false)
         const [refreshSeconds, setRefreshSeconds] = useState(3)
 
@@ -968,21 +1021,42 @@ window.__ModuleLoader__.load({
         }, [job?.id])
 
         useEffect(() => {
-          if (needsReload !== true || refreshCancelled === true) return
+          if (job === null || job.id === undefined) return
+          if (reloadPending !== true || alreadyReloaded !== true) return
+          // The page that performed the reload reports back once, clearing the
+          // pending flag for every other window.
+          void acknowledgeReload(job.id)
+        }, [job?.id, reloadPending, alreadyReloaded])
+
+        useEffect(() => {
+          if (needsReload !== true || refreshCancelled === true || job === null) return
           setRefreshSeconds(3)
           const ticker = setInterval(() => setRefreshSeconds((value) => Math.max(0, value - 1)), 1000)
-          const reload = setTimeout(() => { window.location.reload() }, 3000)
+          const reload = setTimeout(() => {
+            writeReloadMarker(job.id)
+            acknowledgeReloadSoon(job.id)
+            window.location.reload()
+          }, 3000)
           return () => {
             clearInterval(ticker)
             clearTimeout(reload)
           }
         }, [needsReload, refreshCancelled, job?.id])
 
+        const cancelRefresh = () => {
+          setRefreshCancelled(true)
+          if (job !== null && job.id !== undefined) {
+            writeReloadMarker(job.id)
+            void acknowledgeReload(job.id)
+          }
+        }
+
         const refresh = {
           needsReload,
           cancelled: refreshCancelled,
           seconds: refreshSeconds,
-          cancel: () => setRefreshCancelled(true),
+          reloaded: reloadPending && alreadyReloaded,
+          cancel: cancelRefresh,
         }
         const updateLabel = running
           ? t('action.running', { done: job.done, total: job.total })
