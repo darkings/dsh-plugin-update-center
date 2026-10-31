@@ -28,6 +28,7 @@ test('client module registers the sidebar footer action', async () => {
 
     const client = registration.factory((specifier) => {
       if (specifier === 'react') return React
+      if (specifier === 'react-dom') return { createPortal: (children) => children }
       if (specifier === '@deepseek-ai/dsh-client-ui-primitives') return {}
       throw new Error('unexpected module ' + specifier)
     })
@@ -43,7 +44,7 @@ test('client module registers the sidebar footer action', async () => {
       },
       slots: {
         inject: (name, callback) => {
-          assert.equal(name, 'sidebar.footer.action')
+          assert.equal(name, 'shell.overlay')
           callback()
         },
         register: (options, component) => {
@@ -61,7 +62,7 @@ test('client module registers the sidebar footer action', async () => {
     client.apply(ctx)
 
     assert.equal(slots.length, 1)
-    assert.equal(slots[0].options.name, 'sidebar.footer.action')
+    assert.equal(slots[0].options.name, 'shell.overlay')
     assert.equal(slots[0].options.id, 'dsh-plugin-updates')
     assert.equal(typeof slots[0].component, 'function')
 

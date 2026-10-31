@@ -10,6 +10,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-plugin-updates',
   factory(require) {
     const React = require('react')
+    const { createPortal } = require('react-dom')
     const UI = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const { useState, useEffect, useRef } = React
@@ -112,15 +113,12 @@ window.__ModuleLoader__.load({
     }
 
     const STYLE = [
-      '.dshpu-action{width:100%;display:flex;margin:0;min-width:0}',
-      '.dshpu-action.is-rail{width:36px}',
-      '.dshpu-button{width:calc(100% + 4px);height:42px;margin:0 -2px;padding:0 10px 0 8px;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:12px;background:transparent;color:var(--dsw-alias-label-primary,#202124);font-family:inherit;font-size:14px;line-height:22px;cursor:pointer;overflow:hidden;box-sizing:border-box}',
-      '.dshpu-button:hover{background:var(--dsw-alias-interactive-bg-hover,#f0f1f3)}',
-      '.dshpu-button:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:-2px}',
-      '.dshpu-icon{flex:none;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary,#657080)}',
-      '.dshpu-label{min-width:0;flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.dshpu-count{flex:none;margin-left:auto;font-size:12px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8a94a6);font-variant-numeric:tabular-nums}',
-      '.dshpu-rail{width:36px;height:36px;padding:0;margin:0;border-radius:50%;justify-content:center;gap:0}',
+      '.dshpu-rowHost{display:inline-flex;flex:none;align-items:center;min-width:0}',
+      '.dshpu-chip{box-sizing:border-box;display:inline-grid;grid-template-columns:14px max-content;align-items:center;column-gap:4px;height:28px;padding:0 8px;border:1px solid color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 20%, transparent);border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6);background:color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 8%, transparent);font-family:inherit;font-size:12px;font-weight:500;line-height:18px;white-space:nowrap;cursor:pointer;flex:none}',
+      '.dshpu-chip:hover{background:color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 14%, transparent)}',
+      '.dshpu-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:2px}',
+      '.dshpu-chipIcon{display:grid;place-items:center;width:14px;height:14px}',
+      '.dshpu-chipText{font-variant-numeric:tabular-nums}',
       '.dshpu-spin{animation:dshpu-rotate 1s linear infinite}',
       '@keyframes dshpu-rotate{to{transform:rotate(360deg)}}',
       '.dshpu-body{display:flex;flex-direction:column;gap:14px;min-height:160px}',
@@ -138,17 +136,17 @@ window.__ModuleLoader__.load({
       '.dshpu-name{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary,#202124);overflow-wrap:anywhere}',
       '.dshpu-desc{font-size:12px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8a94a6);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
       '.dshpu-versions{display:flex;align-items:center;gap:4px;flex:none;font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080);white-space:nowrap;padding-top:1px}',
-      '.dshpu-latest{color:var(--dsw-alias-brand-primary,#4d6bfe)}',
+      '.dshpu-latest{color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6)}',
       '.dshpu-status{flex:none;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8a94a6);white-space:nowrap;padding-top:1px}',
       '.dshpu-status[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-status[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#d93025)}',
-      '.dshpu-status[data-tone="busy"]{color:var(--dsw-alias-brand-primary,#4d6bfe)}',
+      '.dshpu-status[data-tone="busy"]{color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6)}',
       '.dshpu-progress{display:flex;flex-direction:column;gap:8px}',
       '.dshpu-progressHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080)}',
       '.dshpu-progressName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dshpu-percent{flex:none;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary,#657080)}',
       '.dshpu-bar{height:6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#eceef2);overflow:hidden;position:relative}',
-      '.dshpu-barFill{height:100%;border-radius:999px;background:var(--dsw-alias-brand-primary,#4d6bfe);transition:width .35s ease}',
+      '.dshpu-barFill{height:100%;border-radius:999px;background:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6);transition:width .35s ease}',
       '.dshpu-barFill.is-indeterminate{width:38%;animation:dshpu-slide 1.1s ease-in-out infinite}',
       '@keyframes dshpu-slide{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}',
       '.dshpu-note{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--dsw-alias-border-l1,#eceef2);border-radius:10px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080);background:var(--dsw-alias-bg-layer-2,#f7f8fa)}',
@@ -580,10 +578,78 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function UpdateAction({ wide }) {
+      /**
+       * Keep one host span as a child of the sidebar account row, immediately
+       * after the account button. The row has no list slot, so the chip is
+       * portaled into the row the same way the shipped Desktop update chip
+       * lives there. The row is found by the module-stable `triggerRow` class
+       * suffix and the account button's stable `data-signed-out` attribute.
+       */
+      function useAccountRowHost() {
+        const [host, setHost] = useState(null)
+        useEffect(() => {
+          const node = document.createElement('span')
+          node.className = 'dshpu-rowHost'
+          let button = null
+          let rowObserver = null
+          let attributeObserver = null
+          let findTimer = null
+
+          const syncCollapsed = () => {
+            node.style.display = button?.getAttribute('data-collapsed') === 'true' ? 'none' : ''
+          }
+
+          const attach = () => {
+            const found = document.querySelector('button[data-signed-out]')
+            if (found === null) return false
+            const row = found.closest('[class*="_triggerRow"]')
+            if (row === null) return false
+            if (button !== found) {
+              attributeObserver?.disconnect()
+              button = found
+              attributeObserver = new MutationObserver(syncCollapsed)
+              attributeObserver.observe(button, { attributes: true, attributeFilter: ['data-collapsed'] })
+              syncCollapsed()
+            }
+            rowObserver?.disconnect()
+            rowObserver = new MutationObserver(() => {
+              if (!node.isConnected) attach()
+            })
+            rowObserver.observe(row, { childList: true })
+            if (node.parentElement !== row) row.insertBefore(node, row.children[1] ?? null)
+            setHost(node)
+            return true
+          }
+
+          if (!attach()) {
+            findTimer = setInterval(() => {
+              if (attach()) {
+                clearInterval(findTimer)
+                findTimer = null
+              }
+            }, 500)
+          }
+          const keepAlive = setInterval(() => {
+            if (!node.isConnected) attach()
+          }, 1500)
+
+          return () => {
+            clearInterval(findTimer)
+            clearInterval(keepAlive)
+            rowObserver?.disconnect()
+            attributeObserver?.disconnect()
+            node.remove()
+            setHost(null)
+          }
+        }, [])
+        return host
+      }
+
+      function AccountRowUpdate() {
         useLocaleTick()
         const state = useStoreValue()
         const [open, setOpen] = useState(false)
+        const host = useAccountRowHost()
         const snapshot = state.snapshot
         const updates = snapshot?.updates ?? []
         const job = snapshot?.job ?? null
@@ -596,31 +662,34 @@ window.__ModuleLoader__.load({
             ? t('action.tooltip', { count })
             : t('action.label')
 
-        if (!visible) return null
-
-        return h(React.Fragment, null,
-          h('style', null, STYLE),
-          h('div', { className: 'dshpu-action' + (wide ? '' : ' is-rail') },
-            h(UI.Tooltip, { label, side: 'right' },
+        const chip = host !== null && visible
+          ? createPortal(
+            h(UI.Tooltip, { label, side: 'top', align: 'end' },
               h('button', {
                 type: 'button',
-                className: 'dshpu-button' + (wide ? '' : ' dshpu-rail'),
+                className: 'dshpu-chip',
                 'aria-label': label,
                 onClick: () => {
                   setOpen(true)
                   void refresh()
                 },
               },
-                h('span', { className: 'dshpu-icon' },
+                h('span', { className: 'dshpu-chipIcon' },
                   running
-                    ? h(UI.IconLoadingOutlineRegular, { size: 16, className: 'dshpu-spin' })
-                    : h(UI.IconDownloadOutlineRegular, { size: 16 }),
+                    ? h(UI.IconLoadingOutlineRegular, { size: 14, className: 'dshpu-spin' })
+                    : h(UI.IconDownloadOutlineRegular, { size: 14 }),
                 ),
-                wide ? h('span', { className: 'dshpu-label' }, running ? label : t('action.label')) : null,
-                !running && count > 0 ? h('span', { className: 'dshpu-count' }, String(count)) : null,
+                h('span', { className: 'dshpu-chipText' },
+                  running ? job.done + '/' + job.total : String(count)),
               ),
             ),
-          ),
+            host,
+          )
+          : null
+
+        return h(React.Fragment, null,
+          h('style', null, STYLE),
+          chip,
           h(UpdatePanel, { open, onClose: () => setOpen(false) }),
         )
       }
@@ -635,11 +704,10 @@ window.__ModuleLoader__.load({
         })
       }
 
-      ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-        name: 'sidebar.footer.action',
+      ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+        name: 'shell.overlay',
         id: 'dsh-plugin-updates',
-        order: 10,
-      }, UpdateAction))
+      }, AccountRowUpdate))
 
       ctx.effect(() => {
         bootstrap()
