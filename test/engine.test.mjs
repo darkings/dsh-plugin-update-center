@@ -146,6 +146,7 @@ function makeEngine(overrides = {}) {
     activity: overrides.activity ?? (async () => ({ known: true, busy: false })),
     ...overrides.profileDir === undefined ? {} : { profileDir: overrides.profileDir },
     ...overrides.backup === undefined ? {} : { backup: overrides.backup },
+    ...overrides.queue === undefined ? {} : { queue: overrides.queue },
   })
   return { engine, manager, registry }
 }
@@ -191,6 +192,7 @@ test('checks installed bundles and reports updates', async () => {
     bootCritical: false,
     clientDeps: [],
     dependents: [],
+    hasClient: false,
   })
   assert.equal(snapshot.checked, 1)
   assert.equal(registry.calls.length, 1)
@@ -336,8 +338,7 @@ test('rolls back when the installed package fails post-install verification', as
   assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
 })
 
-test('flags boot-critical plugins and their dependents', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-updates-'))
+test('flags boot-critical plugins and their dependents', async () => {  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-updates-'))
   try {
     await mkdir(join(root, 'node_modules', 'pkg-a'), { recursive: true })
     await writeFile(join(root, 'node_modules', 'pkg-a', 'package.json'), JSON.stringify({
@@ -376,4 +377,83 @@ test('flags boot-critical plugins and their dependents', async () => {
   } finally {
     await rm(root, { recursive: true, force: true })
   }
+})
+
+test('queues until every task is idle and then updates', async () => {
+  let busy = true
+  const { engine, manager } = makeEngine({
+    activity: async () => ({ known: true, busy, agents: busy ? 1 : 0, jobs: 0 }),
+    queue: { pollMs: 10, quietMs: 20, countdownMs: 10 },
+  })
+  await engine.check({ force: true })
+  const started = await engine.start(['pkg-a'], { waitForIdle: true })
+  assert.equal(started.job.state, 'queued')
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  busy = false
+  await waitFor(() => {
+    const state = engine.state.job?.state
+    return state === 'done' || state === 'failed'
+  }, 4000)
+  assert.equal(engine.state.job.state, 'done')
+  assert.ok(manager.calls.some((call) => call[0] === 'remove'))
+})
+
+test('cancels a queued job before it starts', async () => {
+  const { engine, manager } = makeEngine({
+    activity: async () => ({ known: true, busy: true, agents: 1, jobs: 0 }),
+    queue: { pollMs: 10, quietMs: 20, countdownMs: 10 },
+  })
+  await engine.check({ force: true })
+  await engine.start(['pkg-a'], { waitForIdle: true })
+  const cancelled = engine.cancel()
+  assert.equal(cancelled.job.state, 'cancelled')
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  assert.equal(manager.calls.length, 0)
+})
+
+test('requests a reload for a client plugin update', async () => {
+  const { engine } = makeEngine()
+  await engine.check({ force: true })
+  engine.state.rows[0].hasClient = true
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  const job = engine.state.job
+  assert.equal(job.reloadRequired, true)
+  assert.equal(job.restartRequired, false)
+})
+
+test('restart wins over reload for a boot-tier client plugin', async () => {
+  const { engine } = makeEngine()
+  await engine.check({ force: true })
+  engine.state.rows[0].hasClient = true
+  engine.state.rows[0].bootCritical = true
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  const job = engine.state.job
+  assert.equal(job.restartRequired, true)
+  assert.equal(job.reloadRequired, false)
+})
+
+test('refuses to start while DSH itself has a pending update', async () => {
+  const { engine } = makeEngine()
+  await engine.check({ force: true })
+  engine.setDesktopUpdate({ phase: 'available', version: '0.3.0' })
+  await assert.rejects(engine.start(['pkg-a']), (error) => error.code === 'dsh-update')
+  engine.setDesktopUpdate({ phase: 'idle' })
+  const started = await engine.start(['pkg-a'])
+  assert.equal(started.job.state, 'running')
+  await waitFor(() => engine.state.job.state !== 'running')
+})
+
+test('restart-required installation suppresses the reload prompt', async () => {
+  const { engine } = makeEngine({
+    manager: makeManager({ install: async () => ({ changed: true, application: 'restart-required' }) }),
+  })
+  await engine.check({ force: true })
+  engine.state.rows[0].hasClient = true
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  const job = engine.state.job
+  assert.equal(job.restartRequired, true)
+  assert.equal(job.reloadRequired, false)
 })

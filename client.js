@@ -71,6 +71,33 @@ window.__ModuleLoader__.load({
       'error.snapshot-failed': '无法创建 profile 快照，已取消本次更新。',
       'error.rollback-unavailable': '旧版本在 registry 中已不可用，无法安全回滚，已取消。',
       'error.verification-failed': '安装后校验失败，已自动回滚到旧版本。',
+      'error.dsh-update': 'DSH 本体有更新，先完成 DSH 更新再更新插件。',
+      'action.waiting': '等待任务完成',
+      'queue.offer': '有任务正在运行。可以在任务完成后自动开始更新。',
+      'queue.button': '任务完成后自动更新',
+      'queue.title': '等待任务完成',
+      'queue.waiting': '等待任务完成（{agents} 个对话 / {jobs} 个后台任务）',
+      'queue.waitingDesktop': '等待 DSH 本体更新完成',
+      'queue.starting': '任务已完成，{seconds} 秒后开始更新',
+      'queue.cancel': '取消排队',
+      'desktop.blocked': 'DSH 本体有更新（{phase}），先完成 DSH 更新再更新插件。',
+      'refresh.countdown': '更新完成，{seconds} 秒后自动刷新页面',
+      'refresh.cancel': '取消',
+      'refresh.needed': '需要刷新页面才能加载新版本。',
+      'refresh.now': '刷新页面',
+      'residue.title': '卸载残留',
+      'residue.tooltip': '{count} 项卸载残留',
+      'residue.summary': '发现 {count} 项可能由卸载遗留的引用',
+      'residue.selection': 'profile 里多出的插件选择',
+      'residue.patch': 'cordis.patch.yml 里的失效引用',
+      'residue.data': '可能遗留的数据目录',
+      'residue.cleanable': '可清理',
+      'residue.manual': '需手动确认',
+      'residue.note': '只清理悬空的插件选择；补丁行和数据目录不会自动删除。',
+      'residue.clean': '清理可安全项',
+      'residue.cleaned': '已清理 {count} 项',
+      'residue.scan': '重新扫描',
+      'residue.line': '第 {line} 行',
     }
 
     const en = {
@@ -126,12 +153,41 @@ window.__ModuleLoader__.load({
       'error.snapshot-failed': 'A profile snapshot could not be created, so the update was cancelled.',
       'error.rollback-unavailable': 'The previous release is no longer available on the registry, so a safe rollback is impossible. Cancelled.',
       'error.verification-failed': 'Post-install verification failed; the previous version was restored.',
+      'error.dsh-update': 'DSH itself has an update. Finish the DSH update before updating plugins.',
+      'action.waiting': 'Waiting for tasks',
+      'queue.offer': 'A task is running. You can start the update automatically after it finishes.',
+      'queue.button': 'Update after tasks finish',
+      'queue.title': 'Waiting for tasks',
+      'queue.waiting': 'Waiting for tasks ({agents} conversations / {jobs} background jobs)',
+      'queue.waitingDesktop': 'Waiting for the DSH update to finish',
+      'queue.starting': 'Tasks finished. Starting in {seconds}s',
+      'queue.cancel': 'Cancel queue',
+      'desktop.blocked': 'DSH has an update ({phase}). Finish the DSH update before updating plugins.',
+      'refresh.countdown': 'Update complete. Refreshing the page in {seconds}s',
+      'refresh.cancel': 'Cancel',
+      'refresh.needed': 'Refresh the page to load the new version.',
+      'refresh.now': 'Refresh page',
+      'residue.title': 'Uninstall leftovers',
+      'residue.tooltip': '{count} uninstall leftovers',
+      'residue.summary': '{count} references may be left over from uninstalls',
+      'residue.selection': 'Extra plugin selections in the profile',
+      'residue.patch': 'Dangling cordis.patch.yml references',
+      'residue.data': 'Possible leftover data directories',
+      'residue.cleanable': 'Safe to clean',
+      'residue.manual': 'Review manually',
+      'residue.note': 'Only dangling plugin selections are cleaned; patch rows and data directories are never deleted automatically.',
+      'residue.clean': 'Clean safe items',
+      'residue.cleaned': 'Cleaned {count} items',
+      'residue.scan': 'Scan again',
+      'residue.line': 'line {line}',
     }
 
     const STYLE = [
-      '.dshpu-rowHost{display:inline-flex;flex:none;align-items:center;min-width:0}',
+      '.dshpu-rowHost{display:inline-flex;flex:none;align-items:center;gap:4px;min-width:0}',
       '.dshpu-chip{box-sizing:border-box;display:inline-grid;grid-template-columns:14px max-content;align-items:center;column-gap:4px;height:28px;padding:0 8px;border:1px solid color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 20%, transparent);border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6);background:color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 8%, transparent);font-family:inherit;font-size:12px;font-weight:500;line-height:18px;white-space:nowrap;cursor:pointer;flex:none}',
       '.dshpu-chip:hover{background:color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6) 14%, transparent)}',
+      '.dshpu-chip.is-residue{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary,#b26a00) 25%, transparent);color:var(--dsw-alias-state-warn-primary,#b26a00);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary,#b26a00) 8%, transparent)}',
+      '.dshpu-chip.is-residue:hover{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary,#b26a00) 14%, transparent)}',
       '.dshpu-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:2px}',
       '.dshpu-chipIcon{display:grid;place-items:center;width:14px;height:14px}',
       '.dshpu-chipText{font-variant-numeric:tabular-nums}',
@@ -172,6 +228,7 @@ window.__ModuleLoader__.load({
       '.dshpu-note[data-tone="warn"]{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary,#b26a00) 45%, transparent);color:var(--dsw-alias-state-warn-primary,#b26a00)}',
       '.dshpu-note[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-noteText{min-width:0;word-break:break-word}',
+      '.dshpu-group{margin:2px 0 0;font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary,#657080)}',
       '.dshpu-mono{font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace)}',
       '.dshpu-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;width:100%}',
       '.dshpu-footerError{flex:1;min-width:0;margin-right:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary,#d93025);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -213,7 +270,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
-      const store = createStore({ snapshot: null, loading: true, checking: false, error: null })
+      const store = createStore({ snapshot: null, residue: null, loading: true, checking: false, error: null })
       let disposed = false
       let timer = null
       let lastCheckAttempt = 0
@@ -231,7 +288,7 @@ window.__ModuleLoader__.load({
       }
 
       function message(code) {
-        const known = /^(busy|busy-session|check-first|release-changed|invalid-request|registry-unavailable|request-too-large|operation-failed|service-unavailable|snapshot-failed|rollback-unavailable|verification-failed)$/
+        const known = /^(busy|busy-session|check-first|release-changed|invalid-request|registry-unavailable|request-too-large|operation-failed|service-unavailable|snapshot-failed|rollback-unavailable|verification-failed|dsh-update)$/
         return t(known.test(code) ? 'error.' + code : 'error.operation-failed')
       }
 
@@ -265,8 +322,16 @@ window.__ModuleLoader__.load({
 
       async function refresh() {
         try {
-          const snapshot = await api({ action: 'state' })
-          publish({ snapshot, loading: false, error: null })
+          const [snapshot, residue] = await Promise.all([
+            api({ action: 'state' }),
+            api({ action: 'residue' }).catch(() => null),
+          ])
+          publish({
+            snapshot,
+            ...residue === null ? {} : { residue },
+            loading: false,
+            error: null,
+          })
           maybeCheck(snapshot)
         } catch (error) {
           publish({ loading: false, error: errorCodeOf(error) })
@@ -275,7 +340,7 @@ window.__ModuleLoader__.load({
 
       function maybeCheck(snapshot) {
         if (disposed || snapshot === null || snapshot === undefined) return
-        if (snapshot.job?.state === 'running') return
+        if (['queued', 'starting', 'running'].includes(snapshot.job?.state)) return
         if (snapshot.checking) return
         if (store.get().checking) return
         const stale = snapshot.checkedAt === 0 || Date.now() - snapshot.checkedAt > 30 * 60 * 1000
@@ -297,10 +362,34 @@ window.__ModuleLoader__.load({
         schedule()
       }
 
-      async function startUpdates(names) {
-        const snapshot = await api({ action: 'start', names })
+      async function startUpdates(names, waitForIdle) {
+        const snapshot = await api({ action: 'start', names, waitForIdle: waitForIdle === true })
         publish({ snapshot, error: null })
         schedule()
+      }
+
+      async function cancelQueued() {
+        try {
+          const snapshot = await api({ action: 'cancel' })
+          publish({ snapshot })
+        } catch {
+          // The next state read reconciles a stale cancel.
+        }
+      }
+
+      async function cleanResidue() {
+        const value = await api({ action: 'clean-residue' })
+        publish({ residue: value.residue })
+        return value
+      }
+
+      async function refreshResidue() {
+        try {
+          const residue = await api({ action: 'residue' })
+          publish({ residue })
+        } catch {
+          // The next periodic refresh retries.
+        }
       }
 
       async function dismissJob() {
@@ -315,7 +404,7 @@ window.__ModuleLoader__.load({
       function schedule() {
         if (disposed) return
         if (timer !== null) clearTimeout(timer)
-        const fast = store.get().snapshot?.job?.state === 'running'
+        const fast = ['queued', 'starting', 'running'].includes(store.get().snapshot?.job?.state)
         timer = setTimeout(async () => {
           timer = null
           await refresh()
@@ -368,16 +457,36 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function ProgressView({ job }) {
-        const percent = percentOf(job)
+      function ProgressView({ job, refresh }) {
+        const [, setTick] = useState(0)
+        const waiting = job.state === 'queued' || job.state === 'starting'
+        const needsReload = refresh?.needsReload === true
+        const refreshCancelled = refresh?.cancelled === true
+        const refreshSeconds = refresh?.seconds ?? 0
+
+        useEffect(() => {
+          if (job.state !== 'starting') return
+          const ticker = setInterval(() => setTick((value) => value + 1), 250)
+          return () => clearInterval(ticker)
+        }, [job.state])
+
+        const phaseText = job.waitingFor?.desktop === true
+          ? t('queue.waitingDesktop')
+          : t('queue.waiting', { agents: job.waitingFor?.agents ?? 0, jobs: job.waitingFor?.jobs ?? 0 })
+        const countdown = job.countdownEndsAt === null || job.countdownEndsAt === undefined
+          ? 0
+          : Math.max(0, Math.ceil((job.countdownEndsAt - Date.now()) / 1000))
         const current = job.current
-        const label = job.state === 'running'
-          ? current === null
-            ? t('progress.waiting')
-            : t('progress.current', { name: current.name, done: job.done, total: job.total })
-          : job.state === 'done'
-            ? t('done.summary', { count: job.done })
-            : t('done.stopped', { name: current?.name ?? '' })
+        const label = waiting
+          ? phaseText
+          : job.state === 'running'
+            ? current === null
+              ? t('progress.waiting')
+              : t('progress.current', { name: current.name, done: job.done, total: job.total })
+            : job.state === 'done'
+              ? t('done.summary', { count: job.done })
+              : t('done.stopped', { name: current?.name ?? '' })
+        const percent = percentOf(job)
         const failed = job.results.find((entry) => entry.ok !== true)
         const failureText = failed === undefined
           ? null
@@ -385,24 +494,31 @@ window.__ModuleLoader__.load({
         const rollbackText = failed?.rollback == null
           ? ''
           : ' ' + (failed.rollback.ok === true ? t('done.rollbackOk') : t('done.rollbackFailed'))
+
         return h(React.Fragment, null,
-          h('div', { className: 'dshpu-progress' },
-            h('div', { className: 'dshpu-progressHead' },
-              h('div', { className: 'dshpu-progressName' }, label),
-              h('div', { className: 'dshpu-percent' }, Math.round(percent) + '%'),
+          waiting
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconClockOutlineRegular, { size: 16 }) }, phaseText)
+            : h('div', { className: 'dshpu-progress' },
+              h('div', { className: 'dshpu-progressHead' },
+                h('div', { className: 'dshpu-progressName' }, label),
+                job.state === 'done' ? h('div', { className: 'dshpu-percent' }, '100%') : null,
+              ),
+              h('div', {
+                className: 'dshpu-bar',
+                role: 'progressbar',
+                'aria-valuemin': 0,
+                'aria-valuemax': 100,
+                'aria-valuenow': Math.round(percent),
+                'aria-label': label,
+              }, h('div', { className: 'dshpu-barFill', style: { width: percent + '%' } })),
+              job.state === 'running' && current !== null
+                ? h('div', { className: 'dshpu-summary' }, h('span', { className: 'dshpu-summaryText' }, phaseLabel(current.phase)))
+                : null,
             ),
-            h('div', {
-              className: 'dshpu-bar',
-              role: 'progressbar',
-              'aria-valuemin': 0,
-              'aria-valuemax': 100,
-              'aria-valuenow': Math.round(percent),
-              'aria-label': label,
-            }, h('div', { className: 'dshpu-barFill', style: { width: percent + '%' } })),
-            job.state === 'running' && current !== null
-              ? h('div', { className: 'dshpu-summary' }, h('span', { className: 'dshpu-summaryText' }, phaseLabel(current.phase)))
-              : null,
-          ),
+          job.state === 'starting'
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconClockOutlineRegular, { size: 16 }) },
+              t('queue.starting', { seconds: countdown }))
+            : null,
           h('ul', { className: 'dshpu-list' },
             (job.items ?? []).map((item) => {
               const result = job.results.find((entry) => entry.name === item.name)
@@ -437,18 +553,36 @@ window.__ModuleLoader__.load({
             ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
               t('done.summary', { count: job.done }))
             : null,
-          job.state === 'done'
-            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
-              job.restartRequired === true ? t('done.restart') : t('done.refresh'))
+          // Restart wins over reload: a full restart reloads the page too.
+          job.state === 'done' && job.restartRequired === true
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('done.restart'))
             : null,
-          (job.state === 'done' || job.state === 'failed') && typeof job.snapshotDir === 'string'
+          needsReload && refreshCancelled !== true
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) },
+              t('refresh.countdown', { seconds: refreshSeconds }),
+              h('button', {
+                type: 'button',
+                className: 'dshpu-link',
+                onClick: () => refresh?.cancel?.(),
+              }, t('refresh.cancel')))
+            : null,
+          needsReload && refreshCancelled === true
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) },
+              t('refresh.needed'),
+              h('button', {
+                type: 'button',
+                className: 'dshpu-link',
+                onClick: () => { window.location.reload() },
+              }, t('refresh.now')))
+            : null,
+          (job.state === 'done' || job.state === 'failed' || job.state === 'cancelled') && typeof job.snapshotDir === 'string'
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
               t('done.snapshot', { path: job.snapshotDir }))
             : null,
         )
       }
 
-      function ListView({ state, updates, selected, toggle, busy }) {
+      function ListView({ state, updates, selected, toggle, busy, queueOffer, desktopBlocked, desktopPhase }) {
         const snapshot = state.snapshot
         const checking = state.checking || snapshot?.checking === true
         const checkedAt = snapshot?.checkedAt
@@ -471,6 +605,14 @@ window.__ModuleLoader__.load({
               checking ? t('list.checking') : t('list.recheck'),
             ),
           ),
+          desktopBlocked === true
+            ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
+              t('desktop.blocked', { phase: desktopPhase }))
+            : null,
+          queueOffer === true
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconClockOutlineRegular, { size: 16 }) },
+              t('queue.offer'))
+            : null,
           riskyUnselected.length > 0
             ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
               t('risk.unselected', { count: riskyUnselected.length }))
@@ -527,17 +669,22 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function UpdatePanel({ open, onClose }) {
+      function UpdatePanel({ open, onClose, refresh }) {
         const state = useStoreValue()
         const snapshot = state.snapshot
         const job = snapshot?.job ?? null
-        const showJob = job !== null && (job.state === 'running' || (job.results?.length ?? 0) > 0)
+        const jobState = job?.state
+        const showJob = job !== null && (['queued', 'starting', 'running'].includes(jobState) || (job.results?.length ?? 0) > 0)
         const checking = state.checking || snapshot?.checking === true
         const updates = snapshot?.updates ?? []
         const namesKey = updates.map((item) => item.name).join('|')
+        const desktopPhase = snapshot?.desktopUpdate?.phase
+        const desktopBlocked = typeof desktopPhase === 'string'
+          && ['available', 'downloading', 'verifying', 'installing', 'ready'].includes(desktopPhase)
         const [selected, setSelected] = useState(() => new Set())
         const [busy, setBusy] = useState(false)
         const [actionError, setActionError] = useState(null)
+        const [queueOffer, setQueueOffer] = useState(false)
 
         useLocaleTick()
 
@@ -552,6 +699,10 @@ window.__ModuleLoader__.load({
           // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [namesKey, showJob, open])
 
+        useEffect(() => {
+          if (open !== true) setQueueOffer(false)
+        }, [open])
+
         function toggle(name, checked) {
           setSelected((current) => {
             const next = new Set(current)
@@ -561,31 +712,39 @@ window.__ModuleLoader__.load({
           })
         }
 
-        async function submit() {
+        async function submit(waitForIdle) {
           const names = [...selected]
           if (names.length === 0) return
           setBusy(true)
           setActionError(null)
           try {
-            await startUpdates(names)
+            await startUpdates(names, waitForIdle === true)
+            setQueueOffer(false)
           } catch (error) {
-            setActionError(errorCodeOf(error))
+            const code = errorCodeOf(error)
+            if (code === 'busy-session' && waitForIdle !== true) {
+              setQueueOffer(true)
+              setActionError(null)
+            } else {
+              setActionError(code)
+            }
           } finally {
             setBusy(false)
           }
         }
 
         const handleClose = () => {
-          if (job !== null && job.state !== 'running') void dismissJob()
+          if (job !== null && !['running', 'queued', 'starting'].includes(job.state)) void dismissJob()
           onClose()
         }
 
         const loading = snapshot === null || snapshot === undefined || (checking && updates.length === 0)
         let body
-        if (showJob) body = h(ProgressView, { job })
+        if (showJob) body = h(ProgressView, { job, refresh })
         else if (loading) body = h(EmptyOrLoading, { state })
-        else body = h(ListView, { state, updates, selected, toggle, busy })
+        else body = h(ListView, { state, updates, selected, toggle, busy, queueOffer, desktopBlocked, desktopPhase })
 
+        const queueWaiting = showJob && (job.state === 'queued' || job.state === 'starting')
         const footer = h('div', { className: 'dshpu-actions' },
           actionError !== null
             ? h('div', { className: 'dshpu-footerError' }, message(actionError))
@@ -593,7 +752,10 @@ window.__ModuleLoader__.load({
           showJob && job.state === 'running'
             ? h(UI.Button, { variant: 'outline', onClick: handleClose }, t('panel.background'))
             : null,
-          showJob && job.state !== 'running'
+          queueWaiting
+            ? h(UI.Button, { variant: 'outline', onClick: () => { void cancelQueued() } }, t('queue.cancel'))
+            : null,
+          showJob && !queueWaiting && job.state !== 'running'
             ? h(UI.Button, { variant: 'primary', onClick: handleClose }, t('panel.done'))
             : null,
           !showJob
@@ -602,16 +764,20 @@ window.__ModuleLoader__.load({
           !showJob && updates.length > 0
             ? h(UI.Button, {
               variant: 'primary',
-              disabled: busy || checking || selected.size === 0,
-              onClick: () => { void submit() },
-            }, t('panel.update', { count: selected.size }))
+              disabled: busy || checking || selected.size === 0 || desktopBlocked,
+              onClick: () => { void submit(queueOffer) },
+            }, queueOffer ? t('queue.button') : t('panel.update', { count: selected.size }))
             : null,
         )
+
+        const title = showJob
+          ? queueWaiting ? t('queue.title') : t('panel.progressTitle')
+          : t('panel.title')
 
         return h(UI.Modal, {
           open,
           onClose: handleClose,
-          title: showJob ? t('panel.progressTitle') : t('panel.title'),
+          title,
           closeLabel: t('panel.close'),
           footer,
           className: 'dshpu-modal',
@@ -619,6 +785,92 @@ window.__ModuleLoader__.load({
         },
           h('style', null, STYLE),
           body,
+        )
+      }
+
+      function ResiduePanel({ open, onClose }) {
+        const state = useStoreValue()
+        const residue = state.residue
+        const items = residue?.items ?? []
+        const cleanable = residue?.cleanable ?? 0
+        const [busy, setBusy] = useState(false)
+        const [cleaned, setCleaned] = useState(null)
+        const [error, setError] = useState(null)
+        useLocaleTick()
+
+        const groups = [
+          ['selection', t('residue.selection')],
+          ['patch', t('residue.patch')],
+          ['data', t('residue.data')],
+        ]
+
+        async function run() {
+          if (busy) return
+          setBusy(true)
+          setError(null)
+          try {
+            const value = await cleanResidue()
+            setCleaned(value.cleaned?.length ?? 0)
+          } catch (cause) {
+            setError(errorCodeOf(cause))
+          } finally {
+            setBusy(false)
+          }
+        }
+
+        const footer = h('div', { className: 'dshpu-actions' },
+          error !== null ? h('div', { className: 'dshpu-footerError' }, message(error)) : null,
+          h(UI.Button, { variant: 'outline', onClick: () => { void refreshResidue() } }, t('residue.scan')),
+          h(UI.Button, { variant: 'outline', onClick: onClose }, t('panel.close')),
+          h(UI.Button, {
+            variant: 'primary',
+            disabled: busy || cleanable === 0,
+            onClick: () => { void run() },
+          }, t('residue.clean')),
+        )
+
+        return h(UI.Modal, {
+          open,
+          onClose,
+          title: t('residue.title'),
+          closeLabel: t('panel.close'),
+          footer,
+          className: 'dshpu-modal',
+          contentClassName: 'dshpu-modalContent',
+        },
+          h('style', null, STYLE),
+          h('div', { className: 'dshpu-body' },
+            h('div', { className: 'dshpu-summary' },
+              h('div', { className: 'dshpu-summaryText' }, t('residue.summary', { count: items.length }))),
+            cleaned !== null
+              ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
+                t('residue.cleaned', { count: cleaned }))
+              : null,
+            groups.map(([kind, title]) => {
+              const list = items.filter((item) => item.kind === kind)
+              if (list.length === 0) return null
+              return h('div', { key: kind },
+                h('div', { className: 'dshpu-group' }, title),
+                h('ul', { className: 'dshpu-list' },
+                  list.map((item, index) => h('li', { className: 'dshpu-row', key: kind + ':' + index },
+                    h('div', { className: 'dshpu-rowMain' },
+                      h('div', { className: 'dshpu-name' }, item.name),
+                      kind === 'patch'
+                        ? h('div', { className: 'dshpu-desc' },
+                          t('residue.line', { line: item.line }) + (typeof item.text === 'string' ? ' · ' + item.text : ''))
+                        : null,
+                      kind === 'data'
+                        ? h('div', { className: 'dshpu-desc' }, item.path)
+                        : null,
+                    ),
+                    h('div', { className: 'dshpu-status' },
+                      kind === 'selection' ? t('residue.cleanable') : t('residue.manual')),
+                  )),
+                ),
+              )
+            }),
+            h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('residue.note')),
+          ),
         )
       }
 
@@ -693,39 +945,96 @@ window.__ModuleLoader__.load({
         useLocaleTick()
         const state = useStoreValue()
         const [open, setOpen] = useState(false)
+        const [openResidue, setOpenResidue] = useState(false)
         const host = useAccountRowHost()
         const snapshot = state.snapshot
         const updates = snapshot?.updates ?? []
         const job = snapshot?.job ?? null
-        const running = job?.state === 'running'
+        const phase = job?.state
+        const running = phase === 'running'
+        const waiting = phase === 'queued' || phase === 'starting'
         const count = updates.length
-        const visible = open || running || count > 0
-        const label = running
-          ? t('action.running', { done: job.done, total: job.total })
-          : count > 0
-            ? t('action.tooltip', { count })
-            : t('action.label')
+        const updateVisible = open || running || waiting || count > 0
+        const residue = state.residue
+        const residueCount = residue?.items?.length ?? 0
+        const residueVisible = openResidue || residueCount > 0
+        const needsReload = job !== null && job.state === 'done' && job.reloadRequired === true && job.restartRequired !== true
+        const [refreshCancelled, setRefreshCancelled] = useState(false)
+        const [refreshSeconds, setRefreshSeconds] = useState(3)
 
-        const chip = host !== null && visible
+        useEffect(() => {
+          setRefreshCancelled(false)
+          setRefreshSeconds(3)
+        }, [job?.id])
+
+        useEffect(() => {
+          if (needsReload !== true || refreshCancelled === true) return
+          setRefreshSeconds(3)
+          const ticker = setInterval(() => setRefreshSeconds((value) => Math.max(0, value - 1)), 1000)
+          const reload = setTimeout(() => { window.location.reload() }, 3000)
+          return () => {
+            clearInterval(ticker)
+            clearTimeout(reload)
+          }
+        }, [needsReload, refreshCancelled, job?.id])
+
+        const refresh = {
+          needsReload,
+          cancelled: refreshCancelled,
+          seconds: refreshSeconds,
+          cancel: () => setRefreshCancelled(true),
+        }
+        const updateLabel = running
+          ? t('action.running', { done: job.done, total: job.total })
+          : waiting
+            ? t('action.waiting')
+            : count > 0
+              ? t('action.tooltip', { count })
+              : t('action.label')
+        const residueLabel = t('residue.tooltip', { count: residueCount })
+
+        const chips = host !== null && (updateVisible || residueVisible)
           ? createPortal(
-            h(UI.Tooltip, { label, side: 'top', align: 'end' },
-              h('button', {
-                type: 'button',
-                className: 'dshpu-chip',
-                'aria-label': label,
-                onClick: () => {
-                  setOpen(true)
-                  void refresh()
-                },
-              },
-                h('span', { className: 'dshpu-chipIcon' },
-                  running
-                    ? h(UI.IconLoadingOutlineRegular, { size: 14, className: 'dshpu-spin' })
-                    : h(UI.IconDownloadOutlineRegular, { size: 14 }),
-                ),
-                h('span', { className: 'dshpu-chipText' },
-                  running ? job.done + '/' + job.total : String(count)),
-              ),
+            h(React.Fragment, null,
+              updateVisible
+                ? h(UI.Tooltip, { label: updateLabel, side: 'top', align: 'end' },
+                  h('button', {
+                    type: 'button',
+                    className: 'dshpu-chip',
+                    'aria-label': updateLabel,
+                    onClick: () => {
+                      setOpen(true)
+                      void refresh()
+                    },
+                  },
+                    h('span', { className: 'dshpu-chipIcon' },
+                      running
+                        ? h(UI.IconLoadingOutlineRegular, { size: 14, className: 'dshpu-spin' })
+                        : waiting
+                          ? h(UI.IconClockOutlineRegular, { size: 14 })
+                          : h(UI.IconDownloadOutlineRegular, { size: 14 }),
+                    ),
+                    h('span', { className: 'dshpu-chipText' },
+                      running ? job.done + '/' + job.total : String(waiting ? job.total : count)),
+                  ),
+                )
+                : null,
+              residueVisible
+                ? h(UI.Tooltip, { label: residueLabel, side: 'top', align: 'end' },
+                  h('button', {
+                    type: 'button',
+                    className: 'dshpu-chip is-residue',
+                    'aria-label': residueLabel,
+                    onClick: () => {
+                      setOpenResidue(true)
+                      void refreshResidue()
+                    },
+                  },
+                    h('span', { className: 'dshpu-chipIcon' }, h(UI.IconTrashOutlineRegular, { size: 14 })),
+                    h('span', { className: 'dshpu-chipText' }, String(residueCount)),
+                  ),
+                )
+                : null,
             ),
             host,
           )
@@ -733,8 +1042,9 @@ window.__ModuleLoader__.load({
 
         return h(React.Fragment, null,
           h('style', null, STYLE),
-          chip,
-          h(UpdatePanel, { open, onClose: () => setOpen(false) }),
+          chips,
+          h(UpdatePanel, { open, onClose: () => setOpen(false), refresh }),
+          h(ResiduePanel, { open: openResidue, onClose: () => setOpenResidue(false) }),
         )
       }
 
@@ -760,6 +1070,29 @@ window.__ModuleLoader__.load({
           if (timer !== null) clearTimeout(timer)
         }
       }, 'dsh-plugin-updates: client lifecycle')
+
+      ctx.effect(() => {
+        const carrier = globalThis.dshDesktop
+        const bridge = carrier?.protocolVersion === 1 ? carrier.updates : undefined
+        if (bridge === undefined) return () => {}
+        let alive = true
+        const report = (presentation) => {
+          if (!alive) return
+          void api({
+            action: 'desktop-update',
+            phase: presentation?.phase ?? 'unknown',
+            version: presentation?.version ?? null,
+          }).then((snapshot) => {
+            if (alive) publish({ snapshot })
+          }).catch(() => {})
+        }
+        const unsubscribe = typeof bridge.subscribe === 'function' ? bridge.subscribe(report) : null
+        if (typeof bridge.status === 'function') bridge.status().then(report, () => {})
+        return () => {
+          alive = false
+          if (typeof unsubscribe === 'function') unsubscribe()
+        }
+      }, 'dsh-plugin-updates: desktop update gate')
     }
 
     return { inject: ['slots', 'locale'], apply }

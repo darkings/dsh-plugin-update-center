@@ -9,6 +9,8 @@ function makeEngine() {
     snapshot: () => ({ checkedAt: 7, updates: [{ name: 'pkg-a' }] }),
     check: async ({ force }) => ({ forced: force === true }),
     start: async (names) => ({ started: names }),
+    cancel: () => ({ cancelled: true }),
+    setDesktopUpdate: (info) => ({ desktop: info }),
     dismiss: () => ({ dismissed: true }),
   }
 }
@@ -55,8 +57,7 @@ test('dispatches check, start and dismiss', async () => {
   assert.deepEqual(await dismiss.json(), { ok: true, value: { dismissed: true } })
 })
 
-test('maps expected engine failures to stable status codes', async () => {
-  const handler = createHandler({
+test('maps expected engine failures to stable status codes', async () => {  const handler = createHandler({
     snapshot: () => null,
     check: async () => { throw Object.assign(new Error('registry-unavailable'), { code: 'registry-unavailable' }) },
     start: async () => { throw Object.assign(new Error('busy-session'), { code: 'busy-session' }) },
@@ -75,4 +76,36 @@ test('bounds the request body', async () => {
   const response = await handler(post(JSON.stringify({ action: 'state', pad: 'x'.repeat(9000) })))
   assert.equal(response.status, 413)
   assert.deepEqual(await response.json(), { ok: false, code: 'request-too-large' })
+})
+
+test('dispatches cancel, desktop-update and residue actions', async () => {
+  const residue = {
+    scan: async () => ({ checkedAt: 1, items: [{ kind: 'selection', name: 'pkg-gone' }], cleanable: 1 }),
+    clean: async (names) => ({ cleaned: names, residue: { checkedAt: 2, items: [], cleanable: 0 } }),
+  }
+  const handler = createHandler(makeEngine(), residue)
+
+  const cancel = await handler(post(JSON.stringify({ action: 'cancel' })))
+  assert.deepEqual(await cancel.json(), { ok: true, value: { cancelled: true } })
+
+  const desktop = await handler(post(JSON.stringify({ action: 'desktop-update', phase: 'available', version: '0.3.0' })))
+  assert.deepEqual(await desktop.json(), { ok: true, value: { desktop: { phase: 'available', version: '0.3.0' } } })
+
+  const scan = await handler(post(JSON.stringify({ action: 'residue' })))
+  assert.equal((await scan.json()).value.cleanable, 1)
+
+  const clean = await handler(post(JSON.stringify({ action: 'clean-residue', names: ['pkg-gone'] })))
+  assert.deepEqual((await clean.json()).value.cleaned, ['pkg-gone'])
+})
+
+test('maps a pending DSH update to 409', async () => {
+  const handler = createHandler({
+    snapshot: () => null,
+    check: async () => null,
+    start: async () => { throw Object.assign(new Error('dsh-update'), { code: 'dsh-update' }) },
+    dismiss: () => null,
+  })
+  const response = await handler(post(JSON.stringify({ action: 'start', names: ['pkg-a'] })))
+  assert.equal(response.status, 409)
+  assert.deepEqual(await response.json(), { ok: false, code: 'dsh-update' })
 })

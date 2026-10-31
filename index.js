@@ -11,6 +11,7 @@ import { createBackup } from './lib/backup.js'
 import { createEngine } from './lib/engine.js'
 import { createHandler, ROUTE } from './lib/http.js'
 import { createRegistry } from './lib/registry.js'
+import { createResidueService } from './lib/residue.js'
 
 export const name = 'dsh-plugin-updates'
 export const inject = ['connection', 'pluginManager']
@@ -50,6 +51,9 @@ export function apply(ctx) {
   const backup = profileDir !== undefined && homeDir !== undefined
     ? createBackup({ profileDir, homeDir })
     : null
+  const residue = profileDir !== undefined
+    ? createResidueService({ profileDir, homeDir, manager, backup })
+    : null
 
   const engine = createEngine({
     manager,
@@ -70,7 +74,7 @@ export function apply(ctx) {
       path: ROUTE,
       methods: ['POST'],
       requestBody: 'streaming',
-      fetch: createHandler(engine),
+      fetch: createHandler(engine, residue),
     }),
     'dsh-plugin-updates: http route',
   )
