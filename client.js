@@ -48,6 +48,7 @@ window.__ModuleLoader__.load({
       'status.restart': '待重启',
       'status.failed': '失败',
       'done.restart': '新版本已安装，重启 DSH 后生效。',
+      'done.refresh': '更新已安装；如界面仍是旧版本，请刷新页面或重启 DSH。',
       'done.summary': '已更新 {count} 个插件',
       'done.stopped': '更新在 {name} 处停止',
       'done.rollbackOk': '已自动回滚到旧版本。',
@@ -94,6 +95,7 @@ window.__ModuleLoader__.load({
       'status.restart': 'Restart needed',
       'status.failed': 'Failed',
       'done.restart': 'New versions are installed. Restart DSH to load them.',
+      'done.refresh': 'Updates are installed. Refresh the page or restart DSH if the UI still shows the old version.',
       'done.summary': '{count} plugins updated',
       'done.stopped': 'Update stopped at {name}',
       'done.rollbackOk': 'The previous version was restored automatically.',
@@ -411,12 +413,14 @@ window.__ModuleLoader__.load({
             ? h(StatusNote, { tone: 'error', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
               failureText + rollbackText)
             : null,
-          job.state === 'done' && job.restartRequired === true
-            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('done.restart'))
-            : job.state === 'done'
-              ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
-                t('done.summary', { count: job.done }))
-              : null,
+          job.state === 'done'
+            ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
+              t('done.summary', { count: job.done }))
+            : null,
+          job.state === 'done'
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
+              job.restartRequired === true ? t('done.restart') : t('done.refresh'))
+            : null,
         )
       }
 
