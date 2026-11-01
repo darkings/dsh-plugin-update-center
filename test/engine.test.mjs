@@ -338,7 +338,7 @@ test('rolls back when the installed package fails post-install verification', as
   assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
 })
 
-test('flags boot-critical plugins and their dependents', async () => {  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-updates-'))
+test('flags boot-critical plugins and their dependents', async () => {  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-updater-'))
   try {
     await mkdir(join(root, 'node_modules', 'pkg-a'), { recursive: true })
     await writeFile(join(root, 'node_modules', 'pkg-a', 'package.json'), JSON.stringify({

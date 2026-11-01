@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { cleanResidue, scanResidue } from '../lib/residue.js'
 
 async function fixture() {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-updates-residue-'))
+  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-updater-residue-'))
   const profile = join(home, 'profiles', 'desktop')
   await mkdir(join(profile, 'node_modules', 'pkg-keep'), { recursive: true })
   await mkdir(join(home, 'pkg-gone'), { recursive: true })

@@ -7,7 +7,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-plugin-updates',
+  id: 'dsh-plugin-updater',
   factory(require) {
     const React = require('react')
     const { createPortal } = require('react-dom')
@@ -15,8 +15,8 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const { useState, useEffect, useRef } = React
 
-    const NS = 'dsh-plugin-updates'
-    const ROUTE = new URL('api/dsh-plugin-updates', document.baseURI)
+    const NS = 'dsh-plugin-updater'
+    const ROUTE = new URL('api/dsh-plugin-updater', document.baseURI)
 
     const zh = {
       'action.label': '插件更新',
@@ -278,7 +278,7 @@ window.__ModuleLoader__.load({
       let lastCheckAttempt = 0
       let started = false
 
-      ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-updates: dictionaries')
+      ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-updater: dictionaries')
       const t = ctx.locale.bind(NS)
 
       function useLocaleTick() {
@@ -303,7 +303,7 @@ window.__ModuleLoader__.load({
             credentials: 'same-origin',
             cache: 'no-store',
             signal: controller.signal,
-            headers: { 'content-type': 'application/json', 'x-dsh-plugin-updates': '1' },
+            headers: { 'content-type': 'application/json', 'x-dsh-plugin-updater': '1' },
             body: JSON.stringify(body),
           })
           const data = await response.json().catch(() => null)
@@ -394,7 +394,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const RELOAD_MARKER_PREFIX = 'dsh-plugin-updates:reloaded:'
+      const RELOAD_MARKER_PREFIX = 'dsh-plugin-updater:reloaded:'
 
       function hasReloadMarker(jobId) {
         if (typeof jobId !== 'string') return false
@@ -430,7 +430,7 @@ window.__ModuleLoader__.load({
             method: 'POST',
             credentials: 'same-origin',
             keepalive: true,
-            headers: { 'content-type': 'application/json', 'x-dsh-plugin-updates': '1' },
+            headers: { 'content-type': 'application/json', 'x-dsh-plugin-updater': '1' },
             body: JSON.stringify({ action: 'reload-ack', jobId }),
           }).catch(() => {})
         } catch {
@@ -1134,7 +1134,7 @@ window.__ModuleLoader__.load({
 
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({
         name: 'shell.overlay',
-        id: 'dsh-plugin-updates',
+        id: 'dsh-plugin-updater',
       }, AccountRowUpdate))
 
       ctx.effect(() => {
@@ -1143,7 +1143,7 @@ window.__ModuleLoader__.load({
           disposed = true
           if (timer !== null) clearTimeout(timer)
         }
-      }, 'dsh-plugin-updates: client lifecycle')
+      }, 'dsh-plugin-updater: client lifecycle')
 
       ctx.effect(() => {
         const carrier = globalThis.dshDesktop
@@ -1166,7 +1166,7 @@ window.__ModuleLoader__.load({
           alive = false
           if (typeof unsubscribe === 'function') unsubscribe()
         }
-      }, 'dsh-plugin-updates: desktop update gate')
+      }, 'dsh-plugin-updater: desktop update gate')
     }
 
     return { inject: ['slots', 'locale'], apply }

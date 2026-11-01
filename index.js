@@ -13,7 +13,7 @@ import { createHandler, ROUTE } from './lib/http.js'
 import { createRegistry } from './lib/registry.js'
 import { createResidueService } from './lib/residue.js'
 
-export const name = 'dsh-plugin-updates'
+export const name = 'dsh-plugin-updater'
 export const inject = ['connection', 'pluginManager']
 
 function readActivity(ctx) {
@@ -76,7 +76,7 @@ export function apply(ctx) {
       requestBody: 'streaming',
       fetch: createHandler(engine, residue),
     }),
-    'dsh-plugin-updates: http route',
+    'dsh-plugin-updater: http route',
   )
-  ctx.effect(() => () => { void engine.dispose() }, 'dsh-plugin-updates: engine')
+  ctx.effect(() => () => { void engine.dispose() }, 'dsh-plugin-updater: engine')
 }

@@ -1,8 +1,15 @@
 {
-  "name": "dsh-plugin-updates",
+  "name": "dsh-plugin-updater",
   "version": "1.0.0",
-  "private": true,
-  "description": "DSH Web plugin: checks installed profile plugins for newer npm releases and updates them from the sidebar, with a progress bar.",
+  "description": "尊重 DSH 原始风格的插件更新插件：在侧边栏检查、排队更新已安装插件，支持快照回滚、安装后校验、卸载残留清理与离线恢复。 A DSH-native plugin update center for the sidebar with snapshots, rollback, queued updates and leftover cleanup.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "plugin-updates",
+    "updater",
+    "sidebar"
+  ],
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -38,7 +45,12 @@
     }
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "node --test test/*.test.mjs"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0",

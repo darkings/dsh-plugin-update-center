@@ -24,7 +24,7 @@ test('client module registers the sidebar footer action', async () => {
   try {
     await import('../client.js')
     assert.ok(registration, 'module registers itself')
-    assert.equal(registration.id, 'dsh-plugin-updates')
+    assert.equal(registration.id, 'dsh-plugin-updater')
 
     const client = registration.factory((specifier) => {
       if (specifier === 'react') return React
@@ -63,7 +63,7 @@ test('client module registers the sidebar footer action', async () => {
 
     assert.equal(slots.length, 1)
     assert.equal(slots[0].options.name, 'shell.overlay')
-    assert.equal(slots[0].options.id, 'dsh-plugin-updates')
+    assert.equal(slots[0].options.id, 'dsh-plugin-updater')
     assert.equal(typeof slots[0].component, 'function')
 
     for (const dispose of effects) if (typeof dispose === 'function') dispose()

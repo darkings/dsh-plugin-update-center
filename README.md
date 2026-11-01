@@ -1,6 +1,6 @@
-# dsh-plugin-updates
+# dsh-plugin-updater
 
-DSH Web 插件：检查 profile 里已安装插件的 npm 新版本，在侧边栏集中更新，并用进度条显示更新进度。
+尊重 DSH 原始风格的插件更新插件：检查 profile 里已安装插件的 npm 新版本，在侧边栏集中、可排队地更新，并用进度条显示进度；带快照回滚、安装后校验、卸载残留清理和离线恢复。
 
 它只更新 **npm registry 来源的 profile 插件**。DSH 自带插件、`github:` / `git:` / `file:` / `link:` / `workspace:` 安装的插件、以及 DSH 本体更新都不在这里处理。
 
@@ -97,9 +97,19 @@ DSH 对**缺失/损坏的 bundle** 是宽容的：Loader 会跳过并打印 warn
 
 ## 安装
 
+npm 包：`dsh-plugin-updater`
+
 ```powershell
-# 在 DSH 中安装本目录（profile: desktop）
-plugin_manager install_bundle C:\Users\Jie\Projects\dsh-plugins\dsh-plugin-updates
+# 通过 dsh CLI 安装到 desktop profile
+dsh plugin --profile desktop add dsh-plugin-updater
+```
+
+也可以在 DSH 的「插件 → 添加插件」里输入 `dsh-plugin-updater`。
+
+本地开发安装（链接当前 checkout）：
+
+```powershell
+plugin_manager install_bundle C:\Users\Jie\Projects\dsh-plugins\dsh-plugin-updater
 ```
 
 本地目录安装会链接当前 checkout；改完代码后刷新页面即可看到客户端改动，Host 半由 HMR 重载。
@@ -116,7 +126,7 @@ npm test
 
 | 文件 | 作用 |
 | --- | --- |
-| `index.js` | Host 入口：注册 `POST /api/dsh-plugin-updates` |
+| `index.js` | Host 入口：注册 `POST /api/dsh-plugin-updater` |
 | `lib/engine.js` | 检查、计划、串行更新、队列等待、快照前校验、安装后验证、回滚、进度状态 |
 | `lib/backup.js` | profile 快照、保留策略、更新历史 |
 | `lib/residue.js` | 卸载残留扫描（悬空选择/补丁引用/数据目录）与安全清理 |
