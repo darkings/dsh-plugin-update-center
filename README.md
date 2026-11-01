@@ -2,6 +2,8 @@
 
 尊重 DSH 原始风格的插件更新插件：检查 profile 里已安装插件的 npm 新版本，在侧边栏集中、可排队地更新，并用进度条显示进度；带快照回滚、安装后校验、卸载残留清理和离线恢复。
 
+GitHub: https://github.com/darkings/dsh-plugin-updater · npm: https://www.npmjs.com/package/dsh-plugin-updater
+
 它只更新 **npm registry 来源的 profile 插件**。DSH 自带插件、`github:` / `git:` / `file:` / `link:` / `workspace:` 安装的插件、以及 DSH 本体更新都不在这里处理。
 
 ## 界面
