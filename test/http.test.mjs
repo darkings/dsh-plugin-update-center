@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHandler } from '../lib/http.js'
 
-const URL_BASE = 'http://localhost/api/dsh-plugin-updater'
+const URL_BASE = 'http://localhost/api/dsh-plugin-update-center'
 
 function makeEngine() {
   return {
@@ -19,7 +19,7 @@ function makeEngine() {
 function post(body, { header = true, contentType = 'application/json', method = 'POST' } = {}) {
   const headers = {}
   if (contentType !== null) headers['content-type'] = contentType
-  if (header) headers['x-dsh-plugin-updater'] = '1'
+  if (header) headers['x-dsh-plugin-update-center'] = '1'
   return new Request(URL_BASE, {
     method,
     headers,

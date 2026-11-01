@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createBackup } from '../lib/backup.js'
 
 async function makeProfile() {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-updater-home-'))
+  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-update-center-home-'))
   const profile = join(home, 'profiles', 'desktop')
   await mkdir(profile, { recursive: true })
   await writeFile(join(profile, 'package.json'), JSON.stringify({

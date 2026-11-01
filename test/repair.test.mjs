@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'repair.mjs')
 
 test('lists and restores the latest snapshot without installing', async () => {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-updater-repair-'))
+  const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-update-center-repair-'))
   try {
     const profile = join(home, 'profiles', 'desktop')
     const snapshot = join(home, 'plugin-updates', 'snapshots', '2026-01-01T00-00-00-000Z')

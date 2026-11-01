@@ -1,6 +1,6 @@
 {
-  "name": "dsh-plugin-updater",
-  "version": "1.0.1",
+  "name": "dsh-plugin-update-center",
+  "version": "1.0.0",
   "description": "尊重 DSH 原始风格的插件更新插件：在侧边栏检查、排队更新已安装插件，支持快照回滚、安装后校验、卸载残留清理与离线恢复。 A DSH-native plugin update center for the sidebar with snapshots, rollback, queued updates and leftover cleanup.",
   "keywords": [
     "dsh",
@@ -12,11 +12,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darkings/dsh-plugin-updater.git"
+    "url": "git+https://github.com/darkings/dsh-plugin-update-center.git"
   },
-  "homepage": "https://github.com/darkings/dsh-plugin-updater#readme",
+  "homepage": "https://github.com/darkings/dsh-plugin-update-center#readme",
   "bugs": {
-    "url": "https://github.com/darkings/dsh-plugin-updater/issues"
+    "url": "https://github.com/darkings/dsh-plugin-update-center/issues"
   },
   "type": "module",
   "main": "index.js",
