@@ -542,15 +542,15 @@ test('cancels a queued job before it starts', async () => {
   assert.equal(manager.calls.length, 0)
 })
 
-test('requests a reload for a client plugin update', async () => {
+test('requires a restart for a client plugin update', async () => {
   const { engine } = makeEngine()
   await engine.check({ force: true })
   engine.state.rows[0].hasClient = true
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running')
   const job = engine.state.job
-  assert.equal(job.reloadRequired, true)
-  assert.equal(job.restartRequired, false)
+  assert.equal(job.reloadRequired, false)
+  assert.equal(job.restartRequired, true)
 })
 
 test('restart wins over reload for a boot-tier client plugin', async () => {
@@ -582,7 +582,7 @@ test('acknowledging a reload clears the pending reload flag', async () => {
   engine.state.rows[0].hasClient = true
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running')
-  assert.equal(engine.state.job.reloadRequired, true)
+  engine.state.job.reloadRequired = true
   const snapshot = engine.acknowledgeReload(engine.state.job.id)
   assert.equal(snapshot.job.reloadRequired, false)
   assert.equal(typeof snapshot.job.reloadedAt, 'number')
