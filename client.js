@@ -48,6 +48,15 @@ window.__ModuleLoader__.load({
       'status.done': '已更新',
       'status.restart': '待重启',
       'status.failed': '失败',
+      'status.failedRolledBack': '失败，已回滚',
+      'status.failedUnreconciled': '失败，待处理',
+      'status.skipped': '跳过（依赖失败项）',
+      'done.partial': '已更新 {updated} 个，{failed} 个失败已回滚。',
+      'done.retryHint': '失败项保持旧版本；可立即重试，或重启 DSH 后重新检查。',
+      'done.retryFailed': '重试失败项',
+      'done.retryBusy': '正在重试…',
+      'done.unreconciled': '更新未完成，请勿重启；请先重试失败项或恢复快照。',
+      'done.skipped': '{count} 个依赖项已跳过。',
       'done.restart': '新版本已安装，重启 DSH 后生效。',
       'done.refresh': '更新已安装；如界面仍是旧版本，请刷新页面或重启 DSH。',
       'done.snapshot': '更新前快照：{path}',
@@ -131,6 +140,15 @@ window.__ModuleLoader__.load({
       'status.done': 'Updated',
       'status.restart': 'Restart needed',
       'status.failed': 'Failed',
+      'status.failedRolledBack': 'Failed, rolled back',
+      'status.failedUnreconciled': 'Failed, needs attention',
+      'status.skipped': 'Skipped (dependency failed)',
+      'done.partial': '{updated} updated, {failed} failed and rolled back.',
+      'done.retryHint': 'Failed plugins stay on their old version. Retry now or restart DSH and retry from the update list.',
+      'done.retryFailed': 'Retry failed',
+      'done.retryBusy': 'Retrying…',
+      'done.unreconciled': 'The update did not finish. Do not restart yet; retry the failed plugins or restore the snapshot.',
+      'done.skipped': '{count} dependent plugins skipped.',
       'done.restart': 'New versions are installed. Restart DSH to load them.',
       'done.refresh': 'Updates are installed. Refresh the page or restart DSH if the UI still shows the old version.',
       'done.snapshot': 'Pre-update snapshot: {path}',
@@ -215,6 +233,7 @@ window.__ModuleLoader__.load({
       '.dshpu-status{flex:none;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8a94a6);white-space:nowrap;padding-top:1px}',
       '.dshpu-status[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-status[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#d93025)}',
+      '.dshpu-status[data-tone="warn"]{color:var(--dsw-alias-state-warn-primary,#b26a00)}',
       '.dshpu-status[data-tone="busy"]{color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6)}',
       '.dshpu-progress{display:flex;flex-direction:column;gap:8px}',
       '.dshpu-progressHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080)}',
@@ -503,12 +522,17 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function ProgressView({ job, refresh }) {
+      function ProgressView({ job, refresh, retryFailed, retryBusy }) {
         const [, setTick] = useState(0)
         const waiting = job.state === 'queued' || job.state === 'starting'
         const needsReload = refresh?.needsReload === true
         const refreshCancelled = refresh?.cancelled === true
         const refreshSeconds = refresh?.seconds ?? 0
+        const results = job.results ?? []
+        const successes = results.filter((entry) => entry.ok === true)
+        const failures = results.filter((entry) => entry.ok !== true && entry.skipped !== true)
+        const skipped = results.filter((entry) => entry.skipped === true)
+        const unreconciled = failures.find((entry) => entry.reconciled !== true)
 
         useEffect(() => {
           if (job.state !== 'starting') return
@@ -530,16 +554,25 @@ window.__ModuleLoader__.load({
               ? t('progress.waiting')
               : t('progress.current', { name: current.name, done: job.done, total: job.total })
             : job.state === 'done'
-              ? t('done.summary', { count: job.done })
+              ? failures.length > 0
+                ? t('done.partial', { updated: successes.length, failed: failures.length })
+                : t('done.summary', { count: job.done })
               : t('done.stopped', { name: current?.name ?? '' })
         const percent = percentOf(job)
-        const failed = job.results.find((entry) => entry.ok !== true)
-        const failureText = failed === undefined
+        const failureText = unreconciled === undefined
           ? null
-          : t('done.stopped', { name: failed.name }) + '：' + message(failed.error ?? 'operation-failed')
-        const rollbackText = failed?.rollback == null
+          : t('done.stopped', { name: unreconciled.name }) + '：' + message(unreconciled.error ?? 'operation-failed')
+        const rollbackText = unreconciled?.rollback == null
           ? ''
-          : ' ' + (failed.rollback.ok === true ? t('done.rollbackOk') : t('done.rollbackFailed'))
+          : ' ' + (unreconciled.rollback.ok === true ? t('done.rollbackOk') : t('done.rollbackFailed'))
+        const retryButton = failures.length > 0
+          ? h('button', {
+            type: 'button',
+            className: 'dshpu-link',
+            disabled: retryBusy === true,
+            onClick: () => { void retryFailed?.() },
+          }, retryBusy === true ? t('done.retryBusy') : t('done.retryFailed'))
+          : null
 
         return h(React.Fragment, null,
           waiting
@@ -567,17 +600,21 @@ window.__ModuleLoader__.load({
             : null,
           h('ul', { className: 'dshpu-list' },
             (job.items ?? []).map((item) => {
-              const result = job.results.find((entry) => entry.name === item.name)
+              const result = results.find((entry) => entry.name === item.name)
               const isCurrent = job.state === 'running' && current?.name === item.name
               const status = result !== undefined
                 ? result.ok === true
                   ? result.restartRequired === true ? t('status.restart') : t('status.done')
-                  : t('status.failed')
+                  : result.skipped === true
+                    ? t('status.skipped')
+                    : result.reconciled === true
+                      ? t('status.failedRolledBack')
+                      : t('status.failedUnreconciled')
                 : isCurrent
                   ? phaseLabel(current.phase)
                   : t('status.waiting')
               const tone = result !== undefined
-                ? result.ok === true ? 'success' : 'error'
+                ? result.ok === true ? 'success' : result.skipped === true ? 'idle' : result.reconciled === true ? 'warn' : 'error'
                 : isCurrent ? 'busy' : 'idle'
               return h(UpdateRow, {
                 key: item.name,
@@ -593,14 +630,24 @@ window.__ModuleLoader__.load({
           ),
           job.state === 'failed' && failureText !== null
             ? h(StatusNote, { tone: 'error', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
-              failureText + rollbackText)
+              failureText + rollbackText + ' ' + t('done.unreconciled'),
+              retryButton)
             : null,
-          job.state === 'done'
+          job.state === 'done' && failures.length === 0
             ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
               t('done.summary', { count: job.done }))
             : null,
+          job.state === 'done' && failures.length > 0
+            ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
+              t('done.partial', { updated: successes.length, failed: failures.length }) + ' ' + t('done.retryHint'),
+              retryButton)
+            : null,
+          skipped.length > 0
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
+              t('done.skipped', { count: skipped.length }))
+            : null,
           // Restart wins over reload: a full restart reloads the page too.
-          job.state === 'done' && job.restartRequired === true
+          job.state === 'done' && failures.length === 0 && job.restartRequired === true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('done.restart'))
             : null,
           job.state === 'done' && refresh?.reloaded === true
@@ -718,7 +765,7 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function UpdatePanel({ open, onClose, refresh }) {
+      function UpdatePanel({ open, onClose, refresh, retryFailed, retryBusy }) {
         const state = useStoreValue()
         const snapshot = state.snapshot
         const job = snapshot?.job ?? null
@@ -789,7 +836,7 @@ window.__ModuleLoader__.load({
 
         const loading = snapshot === null || snapshot === undefined || (checking && updates.length === 0)
         let body
-        if (showJob) body = h(ProgressView, { job, refresh })
+        if (showJob) body = h(ProgressView, { job, refresh, retryFailed, retryBusy })
         else if (loading) body = h(EmptyOrLoading, { state })
         else body = h(ListView, { state, updates, selected, toggle, busy, queueOffer, desktopBlocked, desktopPhase })
 
@@ -1012,6 +1059,26 @@ window.__ModuleLoader__.load({
         // guard the same completed job would trigger another reload forever.
         const alreadyReloaded = reloadPending && hasReloadMarker(job.id)
         const needsReload = reloadPending && alreadyReloaded !== true
+        const [retryBusy, setRetryBusy] = useState(false)
+
+        const retryFailed = async () => {
+          if (retryBusy === true || job === null) return
+          const names = (job.results ?? [])
+            .filter((entry) => entry.ok !== true && entry.skipped !== true)
+            .map((entry) => entry.name)
+          if (names.length === 0) return
+          setRetryBusy(true)
+          try {
+            const snapshot = await api({ action: 'check', force: true })
+            publish({ snapshot })
+            await startUpdates(names, true)
+          } catch (error) {
+            publish({ error: errorCodeOf(error) })
+          } finally {
+            setRetryBusy(false)
+          }
+        }
+
         const [refreshCancelled, setRefreshCancelled] = useState(false)
         const [refreshSeconds, setRefreshSeconds] = useState(3)
 
@@ -1117,7 +1184,7 @@ window.__ModuleLoader__.load({
         return h(React.Fragment, null,
           h('style', null, STYLE),
           chips,
-          h(UpdatePanel, { open, onClose: () => setOpen(false), refresh }),
+          h(UpdatePanel, { open, onClose: () => setOpen(false), refresh, retryFailed, retryBusy }),
           h(ResiduePanel, { open: openResidue, onClose: () => setOpenResidue(false) }),
         )
       }

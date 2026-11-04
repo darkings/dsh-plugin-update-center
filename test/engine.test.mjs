@@ -83,7 +83,12 @@ function makeManager(overrides = {}) {
     },
     async removeBundle(name) {
       calls.push(['remove', name])
-      return remove(name)
+      const result = await remove(name)
+      if (overrides.persist !== false && result && result.error == null && (result.application === 'applied' || result.application === 'restart-required')) {
+        const row = rows.find((entry) => entry.name === name)
+        if (row !== undefined) row.installed = false
+      }
+      return result
     },
     async installBundle(spec, options) {
       calls.push(['install', spec, options])
@@ -247,9 +252,12 @@ test('restores the previous version when installation fails', async () => {
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running')
   const job = engine.snapshot().job
-  assert.equal(job.state, 'failed')
+  assert.equal(job.state, 'done')
+  assert.equal(job.failures, 1)
+  assert.equal(job.reloadRequired, false)
   assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
   assert.equal(job.results[0].error, 'incompatible-version')
+  assert.equal(job.results[0].reconciled, true)
   assert.equal(job.results[0].rollback.ok, true)
 })
 
@@ -267,8 +275,9 @@ test('stops before removal when the release changed after the check', async () =
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running')
   const job = engine.snapshot().job
-  assert.equal(job.state, 'failed')
+  assert.equal(job.state, 'done')
   assert.equal(job.results[0].error, 'release-changed')
+  assert.equal(job.results[0].reconciled, true)
   assert.equal(manager.calls.length, 0)
   assert.equal(lookups, 2)
 })
@@ -320,22 +329,144 @@ test('refuses to start when the previous release cannot be restored', async () =
   await engine.check({ force: true })
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running')
-  assert.equal(engine.state.job.state, 'failed')
+  assert.equal(engine.state.job.state, 'done')
   assert.equal(engine.state.job.results[0].error, 'rollback-unavailable')
+  assert.equal(engine.state.job.results[0].reconciled, true)
   assert.equal(manager.calls.length, 0)
   assert.equal(registry.calls.length, 2)
 })
 
 test('rolls back when the installed package fails post-install verification', async () => {
-  const { engine, manager } = makeEngine({ manager: makeManager({ persist: false }) })
+  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-update-center-'))
+  try {
+    await mkdir(join(root, 'node_modules', 'pkg-a'), { recursive: true })
+    await writeFile(join(root, 'node_modules', 'pkg-a', 'package.json'), JSON.stringify({
+      name: 'pkg-a',
+      version: '1.0.0',
+      main: 'index.js',
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+    }))
+    await writeFile(join(root, 'node_modules', 'pkg-a', 'index.js'), '')
+    await writeFile(join(root, 'node_modules', 'pkg-a', 'cordis.patch.yml'), '')
+    const { engine, manager } = makeEngine({ profileDir: root })
+    await engine.check({ force: true })
+    await engine.start(['pkg-a'])
+    await waitFor(() => engine.state.job.state !== 'running', 5000)
+    const job = engine.state.job
+    assert.equal(job.state, 'done')
+    assert.equal(job.failure, null)
+    assert.equal(job.failures, 1)
+    assert.equal(job.results[0].error, 'verification-failed')
+    assert.equal(job.results[0].reconciled, true)
+    assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('retries a transient remove failure and completes the update', async () => {
+  let removeCalls = 0
+  const manager = makeManager({
+    bundles: [
+      { name: 'pkg-a', version: '1.0.0', source: 'pkg-a@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+    ],
+    remove: async () => {
+      removeCalls += 1
+      return removeCalls === 1
+        ? { changed: false, application: 'failed', error: { code: 'operation-error' } }
+        : { changed: true, application: 'applied' }
+    },
+  })
+  const registry = {
+    async release(name, signal, options = {}) {
+      const version = options.version ?? '1.2.0'
+      return { version, registry: 'https://registry.npmjs.org', manifest: { ...manifest(version), name } }
+    },
+  }
+  const { engine } = makeEngine({ manager, registry })
+  await engine.check({ force: true })
+  await engine.start(['pkg-a'])
+  await waitFor(() => engine.state.job.state !== 'running')
+  const job = engine.state.job
+  assert.equal(job.state, 'done')
+  assert.equal(job.failures, 0)
+  assert.equal(job.results[0].ok, true)
+  assert.equal(removeCalls, 2)
+})
+
+test('rolls back a failed remove and continues with independent plugins', async () => {
+  const rows = [
+    { name: 'pkg-a', version: '1.0.0', source: 'pkg-a@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+    { name: 'pkg-b', version: '1.0.0', source: 'pkg-b@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+  ]
+  const manager = makeManager({
+    bundles: rows,
+    remove: async (name) => {
+      if (name === 'pkg-a') {
+        rows[0].installed = false
+        return { changed: false, application: 'failed', error: { code: 'operation-error' } }
+      }
+      return { changed: true, application: 'applied' }
+    },
+  })
+  const registry = {
+    async release(name, signal, options = {}) {
+      const version = options.version ?? '1.2.0'
+      return { version, registry: 'https://registry.npmjs.org', manifest: { ...manifest(version), name } }
+    },
+  }
+  const { engine } = makeEngine({ manager, registry })
+  await engine.check({ force: true })
+  const rowA = engine.state.rows.find((row) => row.name === 'pkg-a')
+  const rowB = engine.state.rows.find((row) => row.name === 'pkg-b')
+  rowA.dependents = ['pkg-b']
+  rowB.dependents = []
+  await engine.start(['pkg-a', 'pkg-b'])
+  await waitFor(() => engine.state.job.state !== 'running', 5000)
+  const job = engine.state.job
+  assert.equal(job.state, 'done')
+  assert.equal(job.failures, 1)
+  assert.equal(job.skipped, 1)
+  assert.equal(job.reloadRequired, false)
+  const a = job.results.find((entry) => entry.name === 'pkg-a')
+  const b = job.results.find((entry) => entry.name === 'pkg-b')
+  assert.equal(a.error, 'operation-error')
+  assert.equal(a.reconciled, true)
+  assert.equal(b.skipped, true)
+  assert.equal(manager.calls.some((call) => call[0] === 'install' && call[1] === 'pkg-a@1.0.0'), true)
+  assert.equal(manager.calls.some((call) => String(call[1]).startsWith('pkg-b')), false)
+})
+
+test('stops and flags the batch when the failed plugin cannot be restored', async () => {
+  const rows = [
+    { name: 'pkg-a', version: '1.0.0', source: 'pkg-a@1.0.0', installed: true, availability: 'profile', removable: true, enabled: true },
+  ]
+  const manager = makeManager({
+    bundles: rows,
+    remove: async () => {
+      rows[0].installed = false
+      return { changed: false, application: 'failed', error: { code: 'operation-error' } }
+    },
+    install: async (spec) => spec === 'pkg-a@1.0.0'
+      ? { changed: false, application: 'failed', error: { code: 'rollback-failed' } }
+      : { changed: true, application: 'applied' },
+  })
+  const registry = {
+    async release(name, signal, options = {}) {
+      const version = options.version ?? '1.2.0'
+      return { version, registry: 'https://registry.npmjs.org', manifest: { ...manifest(version), name } }
+    },
+  }
+  const { engine } = makeEngine({ manager, registry })
   await engine.check({ force: true })
   await engine.start(['pkg-a'])
   await waitFor(() => engine.state.job.state !== 'running', 5000)
   const job = engine.state.job
   assert.equal(job.state, 'failed')
-  assert.equal(job.failure, 'verification-failed')
-  assert.equal(job.results[0].error, 'verification-failed')
-  assert.deepEqual(manager.calls.map((call) => call[1]), ['pkg-a', 'pkg-a@1.2.0', 'pkg-a@1.0.0'])
+  assert.equal(job.unreconciled, true)
+  assert.equal(job.failures, 1)
+  assert.equal(job.results[0].reconciled, false)
+  assert.equal(job.results[0].rollback.ok, false)
 })
 
 test('flags boot-critical plugins and their dependents', async () => {  const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-update-center-'))
