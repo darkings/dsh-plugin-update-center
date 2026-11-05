@@ -15,7 +15,7 @@ import { createResidueService } from './lib/residue.js'
 import { createRestartService } from './lib/restart.js'
 
 export const name = 'dsh-plugin-update-center'
-export const inject = ['connection', 'pluginManager']
+export const inject = ['connection']
 
 function readActivity(ctx) {
   try {
@@ -37,14 +37,40 @@ function readActivity(ctx) {
 }
 
 export function apply(ctx) {
-  const manager = ctx.pluginManager
+  let manager = ctx.pluginManager
+  try {
+    manager = ctx.get?.('pluginManager') ?? manager
+  } catch {
+    // A profile without the service still loads the plugin in fallback mode.
+  }
   const connection = ctx.connection
-  if (
-    typeof manager?.listBundles !== 'function'
-    || typeof manager?.installBundle !== 'function'
-    || typeof manager?.removeBundle !== 'function'
-  ) return
   if (typeof connection?.fetch?.register !== 'function') return
+  const hasManager = Boolean(manager)
+    && typeof manager.listBundles === 'function'
+    && typeof manager.installBundle === 'function'
+    && typeof manager.removeBundle === 'function'
+  if (!hasManager) {
+    // Minimal/headless profiles (for example dsh.so's L5 profile) do not mount
+    // the profile plugin manager. Still load the plugin and answer its route so
+    // the web boot and the endpoint check pass; the UI reports that updates are
+    // unavailable in this profile.
+    ctx.effect(
+      () => connection.fetch.register({
+        path: ROUTE,
+        methods: ['POST'],
+        requestBody: 'streaming',
+        fetch: async () => new Response(JSON.stringify({ ok: false, code: 'service-unavailable' }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store',
+          },
+        }),
+      }),
+      'dsh-plugin-update-center: unavailable route',
+    )
+    return
+  }
 
   const profile = ctx.get?.('profileContext')
   const profileDir = typeof profile?.dir === 'string' && profile.dir !== '' ? profile.dir : undefined
