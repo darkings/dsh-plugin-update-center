@@ -61,6 +61,7 @@ window.__ModuleLoader__.load({
       'done.restartButton': '完整重启',
       'done.restarting': '正在重启 DSH…',
       'done.restartUnavailable': '自动重启不可用，请手动退出并重新打开 DSH。',
+      'done.restartTimeout': '自动重启未完成，请手动重启 DSH。',
       'done.refresh': '更新已安装；如界面仍是旧版本，请刷新页面或重启 DSH。',
       'done.snapshot': '更新前快照：{path}',
       'risk.boot': '启动关键',
@@ -156,6 +157,7 @@ window.__ModuleLoader__.load({
       'done.restartButton': 'Restart DSH',
       'done.restarting': 'Restarting DSH…',
       'done.restartUnavailable': 'Automatic restart is unavailable. Quit and reopen DSH manually.',
+      'done.restartTimeout': 'The automatic restart did not finish. Restart DSH manually.',
       'done.refresh': 'Updates are installed. Refresh the page or restart DSH if the UI still shows the old version.',
       'done.snapshot': 'Pre-update snapshot: {path}',
       'risk.boot': 'Boot-critical',
@@ -574,14 +576,6 @@ window.__ModuleLoader__.load({
         const rollbackText = unreconciled?.rollback == null
           ? ''
           : ' ' + (unreconciled.rollback.ok === true ? t('done.rollbackOk') : t('done.rollbackFailed'))
-        const retryButton = failures.length > 0
-          ? h('button', {
-            type: 'button',
-            className: 'dshpu-link',
-            disabled: retryBusy === true,
-            onClick: () => { void retryFailed?.() },
-          }, retryBusy === true ? t('done.retryBusy') : t('done.retryFailed'))
-          : null
 
         return h(React.Fragment, null,
           waiting
@@ -639,8 +633,7 @@ window.__ModuleLoader__.load({
           ),
           job.state === 'failed' && failureText !== null
             ? h(StatusNote, { tone: 'error', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
-              failureText + rollbackText + ' ' + t('done.unreconciled'),
-              retryButton)
+              failureText + rollbackText + ' ' + t('done.unreconciled'))
             : null,
           job.state === 'done' && failures.length === 0
             ? h(StatusNote, { tone: 'success', icon: h(UI.IconCheckCircleOutlineRegular, { size: 16 }) },
@@ -648,8 +641,7 @@ window.__ModuleLoader__.load({
             : null,
           job.state === 'done' && failures.length > 0
             ? h(StatusNote, { tone: 'warn', icon: h(UI.IconWarningOutlineMedium, { size: 16 }) },
-              t('done.partial', { updated: successes.length, failed: failures.length }) + ' ' + t('done.retryHint'),
-              retryButton)
+              t('done.partial', { updated: successes.length, failed: failures.length }) + ' ' + t('done.retryHint'))
             : null,
           skipped.length > 0
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
@@ -657,16 +649,7 @@ window.__ModuleLoader__.load({
             : null,
           job.state === 'done' && failures.length === 0 && job.restartRequired === true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
-              t('done.restart'),
-              h('button', {
-                type: 'button',
-                className: 'dshpu-restart',
-                disabled: restarting === true,
-                onClick: () => { void restartApp?.() },
-              }, restarting === true ? t('done.restarting') : t('done.restartButton')),
-              restartError !== null && restartError !== undefined
-                ? h('span', { className: 'dshpu-restartError' }, t('done.restartUnavailable'))
-                : null)
+              t('done.restart'))
             : null,
           job.state === 'done' && refresh?.reloaded === true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) }, t('refresh.done'))
@@ -859,9 +842,20 @@ window.__ModuleLoader__.load({
         else body = h(ListView, { state, updates, selected, toggle, busy, queueOffer, desktopBlocked, desktopPhase })
 
         const queueWaiting = showJob && (job.state === 'queued' || job.state === 'starting')
+        const failedResults = (job?.results ?? []).filter((entry) => entry.ok !== true && entry.skipped !== true)
+        const unreconciled = job?.unreconciled === true || failedResults.some((entry) => entry.reconciled !== true)
+        const canRetry = showJob && failedResults.length > 0 && !['queued', 'starting', 'running'].includes(job.state)
+        const canRestart = showJob && job.state === 'done' && job.restartRequired === true && unreconciled !== true
+        const partial = failedResults.length > 0
+        const restartErrorText = restartError === null || restartError === undefined
+          ? null
+          : restartError === 'restart-timeout' ? t('done.restartTimeout') : t('done.restartUnavailable')
         const footer = h('div', { className: 'dshpu-actions' },
           actionError !== null
             ? h('div', { className: 'dshpu-footerError' }, message(actionError))
+            : null,
+          restartErrorText !== null
+            ? h('div', { className: 'dshpu-footerError' }, restartErrorText)
             : null,
           showJob && job.state === 'running'
             ? h(UI.Button, { variant: 'outline', onClick: handleClose }, t('panel.background'))
@@ -869,7 +863,24 @@ window.__ModuleLoader__.load({
           queueWaiting
             ? h(UI.Button, { variant: 'outline', onClick: () => { void cancelQueued() } }, t('queue.cancel'))
             : null,
-          showJob && !queueWaiting && job.state !== 'running'
+          showJob && !queueWaiting && job.state !== 'running' && (canRetry || canRestart)
+            ? h(UI.Button, { variant: 'outline', onClick: handleClose }, t('panel.done'))
+            : null,
+          canRestart
+            ? h(UI.Button, {
+              variant: partial ? 'outline' : 'primary',
+              disabled: restarting === true,
+              onClick: () => { void restartApp() },
+            }, restarting === true ? t('done.restarting') : t('done.restartButton'))
+            : null,
+          canRetry
+            ? h(UI.Button, {
+              variant: 'primary',
+              disabled: retryBusy === true,
+              onClick: () => { void retryFailed() },
+            }, retryBusy === true ? t('done.retryBusy') : t('done.retryFailed'))
+            : null,
+          showJob && !queueWaiting && job.state !== 'running' && !canRetry && !canRestart
             ? h(UI.Button, { variant: 'primary', onClick: handleClose }, t('panel.done'))
             : null,
           !showJob
@@ -1097,6 +1108,15 @@ window.__ModuleLoader__.load({
           setRestarting(false)
           setRestartError(null)
         }, [job?.id])
+
+        useEffect(() => {
+          if (restarting !== true) return
+          const timer = setTimeout(() => {
+            setRestarting(false)
+            setRestartError('restart-timeout')
+          }, 6000)
+          return () => clearTimeout(timer)
+        }, [restarting])
 
         const retryFailed = async () => {
           if (retryBusy === true || job === null) return

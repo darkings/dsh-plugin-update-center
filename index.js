@@ -6,7 +6,7 @@
  * delegated to the official `pluginManager`; nothing here writes the profile.
  */
 
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createBackup } from './lib/backup.js'
 import { createEngine } from './lib/engine.js'
 import { createHandler, ROUTE } from './lib/http.js'
@@ -37,9 +37,9 @@ function readActivity(ctx) {
 }
 
 export function apply(ctx) {
-  let manager = ctx.pluginManager
+  let manager
   try {
-    manager = ctx.get?.('pluginManager') ?? manager
+    manager = ctx.get?.('pluginManager')
   } catch {
     // A profile without the service still loads the plugin in fallback mode.
   }
@@ -81,7 +81,11 @@ export function apply(ctx) {
   const residue = profileDir !== undefined
     ? createResidueService({ profileDir, homeDir, manager, backup })
     : null
-  const restart = createRestartService()
+  const restart = createRestartService({
+    logPath: homeDir === undefined
+      ? join(process.env.TEMP ?? '.', 'dsh-plugin-update-center-restart.log')
+      : join(homeDir, 'plugin-updates', 'restart.log'),
+  })
 
   const engine = createEngine({
     manager,
