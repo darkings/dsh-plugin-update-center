@@ -15,7 +15,7 @@ GitHub: https://github.com/darkings/dsh-plugin-update-center · npm: https://www
 - 点击更新 chip 打开 DSH 原生风格的弹窗：勾选要更新的插件，点「更新 N 个插件」。
 - 有任务在运行时，按钮变成「任务完成后自动更新」；点击进入队列，任务全部结束并静默后自动开始。
 - 更新开始后弹窗切换为进度视图：总进度条、当前插件、每个插件的状态（等待 / 核对版本 / 移除旧版 / 安装新版 / 已更新 / 待重启 / 失败）。
-- 全部完成后统一提示：更新了带客户端的插件就提示**完整重启 DSH**；不再自动刷新页面。
+- 全部完成后统一提示：更新了带客户端的插件就提示**完整重启 DSH**，提示条带「完整重启」按钮，点击后关闭并重新启动桌面应用；不再自动刷新页面。
 - 不需要时可以关闭弹窗、让任务在后台继续；完成后再打开查看结果。
 
 ## 检查逻辑
@@ -126,7 +126,7 @@ plugin_manager install_bundle C:\Users\Jie\Projects\dsh-plugins\dsh-plugin-updat
 npm test
 ```
 
-覆盖：版本比较与 engines 范围、更新计划筛选、remove → install → 回滚顺序、发布变化中止、队列空闲等待/取消、重启优先于刷新、残留扫描与安全清理、HTTP 路由的鉴权头/请求体/错误码、registry 回退与范围检查。
+覆盖：版本比较与 engines 范围、更新计划筛选、remove → install → 回滚顺序、发布变化中止、队列空闲等待/取消、失败重试与回滚续跑、重启与完整重启、残留扫描与安全清理、HTTP 路由的鉴权头/请求体/错误码、registry 回退与范围检查。
 
 ## 文件
 
@@ -139,6 +139,7 @@ npm test
 | `lib/registry.js` | npm registry 读取与回退 |
 | `lib/versions.js` | 无依赖的 semver 比较与范围判断 |
 | `lib/http.js` | 同源 POST 路由与有界请求体 |
+| `lib/restart.js` | 完整重启：关闭桌面应用并重新启动同路径可执行文件 |
 | `client.js` | 登录名右侧 chip、排队/生效提示、残留窗口、进度条 |
 | `repair.mjs` / `repair.cmd` | DSH 打不开时的离线恢复脚本 |
 | `locale/*.json` | 插件管理页显示标题与描述 |

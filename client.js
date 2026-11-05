@@ -57,7 +57,10 @@ window.__ModuleLoader__.load({
       'done.retryBusy': '正在重试…',
       'done.unreconciled': '更新未完成，请勿重启；请先重试失败项或恢复快照。',
       'done.skipped': '{count} 个依赖项已跳过。',
-      'done.restart': '新版本已安装。请完整重启 DSH 后再使用，不要只刷新页面。',
+      'done.restart': '新版本已安装。请完整重启 DSH 后再使用。',
+      'done.restartButton': '完整重启',
+      'done.restarting': '正在重启 DSH…',
+      'done.restartUnavailable': '自动重启不可用，请手动退出并重新打开 DSH。',
       'done.refresh': '更新已安装；如界面仍是旧版本，请刷新页面或重启 DSH。',
       'done.snapshot': '更新前快照：{path}',
       'risk.boot': '启动关键',
@@ -149,7 +152,10 @@ window.__ModuleLoader__.load({
       'done.retryBusy': 'Retrying…',
       'done.unreconciled': 'The update did not finish. Do not restart yet; retry the failed plugins or restore the snapshot.',
       'done.skipped': '{count} dependent plugins skipped.',
-      'done.restart': 'New versions are installed. Restart DSH completely; do not just refresh the page.',
+      'done.restart': 'New versions are installed. Restart DSH completely to use them.',
+      'done.restartButton': 'Restart DSH',
+      'done.restarting': 'Restarting DSH…',
+      'done.restartUnavailable': 'Automatic restart is unavailable. Quit and reopen DSH manually.',
       'done.refresh': 'Updates are installed. Refresh the page or restart DSH if the UI still shows the old version.',
       'done.snapshot': 'Pre-update snapshot: {path}',
       'risk.boot': 'Boot-critical',
@@ -234,6 +240,9 @@ window.__ModuleLoader__.load({
       '.dshpu-status[data-tone="success"]{color:var(--dsw-alias-state-success-primary,#1a8a4a)}',
       '.dshpu-status[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#d93025)}',
       '.dshpu-status[data-tone="warn"]{color:var(--dsw-alias-state-warn-primary,#b26a00)}',
+      '.dshpu-restart{border:0;border-radius:6px;background:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6);color:#fff;font:inherit;font-size:12px;line-height:18px;padding:4px 10px;cursor:pointer;flex:none;margin-left:8px}',
+      '.dshpu-restart:disabled{opacity:.6;cursor:default}',
+      '.dshpu-restartError{color:var(--dsw-alias-state-error-primary,#d93025);margin-left:8px}',
       '.dshpu-status[data-tone="busy"]{color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,#4176e6)}',
       '.dshpu-progress{display:flex;flex-direction:column;gap:8px}',
       '.dshpu-progressHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#657080)}',
@@ -522,7 +531,7 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function ProgressView({ job, refresh, retryFailed, retryBusy }) {
+      function ProgressView({ job, refresh, retryFailed, retryBusy, restartApp, restarting, restartError }) {
         const [, setTick] = useState(0)
         const waiting = job.state === 'queued' || job.state === 'starting'
         const needsReload = refresh?.needsReload === true
@@ -646,9 +655,18 @@ window.__ModuleLoader__.load({
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
               t('done.skipped', { count: skipped.length }))
             : null,
-          // Restart wins over reload: a full restart reloads the page too.
           job.state === 'done' && failures.length === 0 && job.restartRequired === true
-            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) }, t('done.restart'))
+            ? h(StatusNote, { tone: 'info', icon: h(UI.IconInfoOutlineRegular, { size: 16 }) },
+              t('done.restart'),
+              h('button', {
+                type: 'button',
+                className: 'dshpu-restart',
+                disabled: restarting === true,
+                onClick: () => { void restartApp?.() },
+              }, restarting === true ? t('done.restarting') : t('done.restartButton')),
+              restartError !== null && restartError !== undefined
+                ? h('span', { className: 'dshpu-restartError' }, t('done.restartUnavailable'))
+                : null)
             : null,
           job.state === 'done' && refresh?.reloaded === true
             ? h(StatusNote, { tone: 'info', icon: h(UI.IconRefreshOutlineRegular, { size: 16 }) }, t('refresh.done'))
@@ -765,7 +783,7 @@ window.__ModuleLoader__.load({
         )
       }
 
-      function UpdatePanel({ open, onClose, refresh, retryFailed, retryBusy }) {
+      function UpdatePanel({ open, onClose, refresh, retryFailed, retryBusy, restartApp, restarting, restartError }) {
         const state = useStoreValue()
         const snapshot = state.snapshot
         const job = snapshot?.job ?? null
@@ -836,7 +854,7 @@ window.__ModuleLoader__.load({
 
         const loading = snapshot === null || snapshot === undefined || (checking && updates.length === 0)
         let body
-        if (showJob) body = h(ProgressView, { job, refresh, retryFailed, retryBusy })
+        if (showJob) body = h(ProgressView, { job, refresh, retryFailed, retryBusy, restartApp, restarting, restartError })
         else if (loading) body = h(EmptyOrLoading, { state })
         else body = h(ListView, { state, updates, selected, toggle, busy, queueOffer, desktopBlocked, desktopPhase })
 
@@ -1060,6 +1078,25 @@ window.__ModuleLoader__.load({
         const alreadyReloaded = reloadPending && hasReloadMarker(job.id)
         const needsReload = reloadPending && alreadyReloaded !== true
         const [retryBusy, setRetryBusy] = useState(false)
+        const [restarting, setRestarting] = useState(false)
+        const [restartError, setRestartError] = useState(null)
+
+        const restartApp = async () => {
+          if (restarting === true) return
+          setRestarting(true)
+          setRestartError(null)
+          try {
+            await api({ action: 'restart-app' })
+          } catch (error) {
+            setRestarting(false)
+            setRestartError(errorCodeOf(error))
+          }
+        }
+
+        useEffect(() => {
+          setRestarting(false)
+          setRestartError(null)
+        }, [job?.id])
 
         const retryFailed = async () => {
           if (retryBusy === true || job === null) return
@@ -1184,7 +1221,7 @@ window.__ModuleLoader__.load({
         return h(React.Fragment, null,
           h('style', null, STYLE),
           chips,
-          h(UpdatePanel, { open, onClose: () => setOpen(false), refresh, retryFailed, retryBusy }),
+          h(UpdatePanel, { open, onClose: () => setOpen(false), refresh, retryFailed, retryBusy, restartApp, restarting, restartError }),
           h(ResiduePanel, { open: openResidue, onClose: () => setOpenResidue(false) }),
         )
       }

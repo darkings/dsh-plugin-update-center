@@ -102,6 +102,32 @@ test('dispatches cancel, desktop-update and residue actions', async () => {
   assert.deepEqual((await clean.json()).value.cleaned, [{ kind: 'selection', name: 'pkg-gone' }])
 })
 
+test('restarts the desktop app after the job finishes', async () => {
+  let restarted = 0
+  const engine = makeEngine()
+  engine.snapshot = () => ({ job: { state: 'done' } })
+  const handler = createHandler(engine, null, { restart: () => { restarted += 1; return { ok: true } } })
+  const response = await handler(post(JSON.stringify({ action: 'restart-app' })))
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { ok: true, value: { restarting: true } })
+  assert.equal(restarted, 1)
+})
+
+test('refuses to restart while a job is running or when unsupported', async () => {
+  const busyEngine = makeEngine()
+  busyEngine.snapshot = () => ({ job: { state: 'running' } })
+  const busyHandler = createHandler(busyEngine, null, { restart: () => ({ ok: true }) })
+  const busy = await busyHandler(post(JSON.stringify({ action: 'restart-app' })))
+  assert.equal(busy.status, 409)
+  assert.deepEqual(await busy.json(), { ok: false, code: 'busy' })
+
+  const idleEngine = makeEngine()
+  idleEngine.snapshot = () => ({ job: { state: 'done' } })
+  const unsupported = await createHandler(idleEngine, null, null)(post(JSON.stringify({ action: 'restart-app' })))
+  assert.equal(unsupported.status, 501)
+  assert.deepEqual(await unsupported.json(), { ok: false, code: 'restart-unavailable' })
+})
+
 test('maps a pending DSH update to 409', async () => {
   const handler = createHandler({
     snapshot: () => null,

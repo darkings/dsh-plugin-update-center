@@ -12,6 +12,7 @@ import { createEngine } from './lib/engine.js'
 import { createHandler, ROUTE } from './lib/http.js'
 import { createRegistry } from './lib/registry.js'
 import { createResidueService } from './lib/residue.js'
+import { createRestartService } from './lib/restart.js'
 
 export const name = 'dsh-plugin-update-center'
 export const inject = ['connection', 'pluginManager']
@@ -54,6 +55,7 @@ export function apply(ctx) {
   const residue = profileDir !== undefined
     ? createResidueService({ profileDir, homeDir, manager, backup })
     : null
+  const restart = createRestartService()
 
   const engine = createEngine({
     manager,
@@ -74,7 +76,7 @@ export function apply(ctx) {
       path: ROUTE,
       methods: ['POST'],
       requestBody: 'streaming',
-      fetch: createHandler(engine, residue),
+      fetch: createHandler(engine, residue, restart),
     }),
     'dsh-plugin-update-center: http route',
   )
